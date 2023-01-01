@@ -6,6 +6,7 @@ use std::io::{stdin, stdout, Write};
 use rand::{seq::SliceRandom, thread_rng, Rng};
 
 use termion::color;
+use termion::cursor::HideCursor;
 use termion::event::{Event, Key, MouseEvent};
 use termion::input::{MouseTerminal, TermRead};
 use termion::raw::IntoRawMode;
@@ -58,7 +59,7 @@ const BG_COLOR: color::Bg<color::Rgb> = color::Bg(color::Rgb(40, 40, 40));
 pub struct Cell {
     state: CellState,
     content: CellContent,
-    neighboring_bomb_count: usize,
+    neighbouring_bomb_count: usize,
 }
 
 impl Display for Cell {
@@ -72,8 +73,8 @@ impl Display for Cell {
                     f,
                     "{}{}{}{}{}",
                     BG_COLOR,
-                    NBOR_COUNT_TO_FG_COLOR[self.neighboring_bomb_count],
-                    self.neighboring_bomb_count,
+                    NBOR_COUNT_TO_FG_COLOR[self.neighbouring_bomb_count],
+                    self.neighbouring_bomb_count,
                     color::Fg(color::Reset),
                     color::Bg(color::Reset)
                 ),
@@ -97,7 +98,7 @@ struct Field {
     cols: usize,
     grid: Vec<Cell>,
     cursor: Cursor,
-    uncovered_empty_cells: usize,
+    covered_empty_cells: usize,
     mine_count: usize,
     flag_count: usize,
 }
@@ -109,7 +110,7 @@ impl Field {
         }
 
         let mut grid = Vec::with_capacity(rows * cols);
-        let mut uncovered_empty_cells = 0;
+        let mut covered_empty_cells = 0;
         let mut mine_count = 0;
 
         // Generate random board
@@ -119,20 +120,20 @@ impl Field {
                 mine_count += 1;
                 CellContent::Mine
             } else {
-                uncovered_empty_cells += 1;
+                covered_empty_cells += 1;
                 CellContent::Empty
             };
 
             let cell = Cell {
                 state: CellState::Closed,
                 content: cell_content,
-                neighboring_bomb_count: 0,
+                neighbouring_bomb_count: 0,
             };
 
             grid.push(cell);
         }
 
-        // Update the counters of the neighboring mines for each mine
+        // Update the counters of the neighbouring mines for each mine
         for idx in 0..rows * cols {
             let mut count = 0;
             let row = (idx / cols) as isize;
@@ -161,7 +162,7 @@ impl Field {
                     }
                 }
             }
-            grid[row as usize * cols + col as usize].neighboring_bomb_count = count;
+            grid[row as usize * cols + col as usize].neighbouring_bomb_count = count;
         }
 
         Self {
@@ -169,21 +170,21 @@ impl Field {
             cols,
             grid,
             cursor: Cursor { row: 0, col: 0 },
-            uncovered_empty_cells,
+            covered_empty_cells,
             mine_count,
             flag_count: 0,
         }
     }
 
     fn get(&self, row: usize, col: usize) -> Option<Cell> {
-        if row > self.rows || col > self.cols {
+        if row >= self.rows || col >= self.cols {
             return None;
         }
         Some(self.grid[row * self.cols + col])
     }
 
     fn get_mut(&mut self, row: usize, col: usize) -> Option<&mut Cell> {
-        if row > self.rows || col > self.cols {
+        if row >= self.rows || col >= self.cols {
             return None;
         }
         Some(&mut self.grid[row * self.cols + col])
@@ -198,22 +199,52 @@ impl Field {
         Some(old_val.unwrap())
     }
 
-    fn uncover_at_cursor(&mut self) -> CellContent {
-        let cell_under_cursor = self.get_mut(self.cursor.row, self.cursor.col).unwrap();
-        let old_content = cell_under_cursor.content.clone();
+    fn cell_under_cursor_mut(&mut self) -> &mut Cell {
+        self.get_mut(self.cursor.row, self.cursor.col).unwrap()
+    }
 
-        // if state is Open or Flagged, do nothing
-        if let CellState::Closed = cell_under_cursor.state {
-            cell_under_cursor.set_state(CellState::Open);
-            match cell_under_cursor.content {
-                CellContent::Mine => {
-                    // Do nothing, the caller will do stuff with the return value
-                }
-                CellContent::Empty => {
-                    self.uncovered_empty_cells -= 1;
+    fn uncover_at_cursor(&mut self) -> CellContent {
+        let old_content = self.cell_under_cursor_mut().content.clone();
+
+        fn _uncover_at_cursor_rec(field: &mut Field, current_row: isize, current_col: isize) {
+            if current_row < 0 || current_col < 0 {
+                return;
+            }
+            let res = field.get(current_row as usize, current_col as usize);
+            if res.is_none() {
+                return;
+            }
+            let current_cell = res.unwrap();
+
+            // if state is Open or Flagged, do nothing
+            if !matches!(current_cell.state, CellState::Closed) {
+                return;
+            }
+
+            if let CellContent::Mine = current_cell.content {
+                return;
+            }
+
+            field.covered_empty_cells -= 1;
+            let current_cell = field.get_mut(current_row as usize, current_col as usize).unwrap();
+            current_cell.set_state(CellState::Open);
+
+            // Do not call recursively if we are at the edge of the 0s region
+            if current_cell.neighbouring_bomb_count == 0 {
+                // for each neighbouring cell run the function recursively
+                for drow in -1..=1 {
+                    for dcol in -1..=1 {
+                        if drow == 0 && dcol == 0 {
+                            continue;
+                        }
+                        // Bounds will be checked by the next recursive call's `if let Some(..)` and the `if` before that
+                        _uncover_at_cursor_rec(field, current_row + drow, current_col + dcol)
+                    }
                 }
             }
         }
+
+        _uncover_at_cursor_rec(self, self.cursor.row as isize, self.cursor.col as isize);
 
         old_content
     }
@@ -228,11 +259,11 @@ impl Field {
                     cell_under_cursor.set_state(CellState::Flagged);
                     self.flag_count += 1;
                 }
-            },
+            }
             CellState::Flagged => {
                 cell_under_cursor.set_state(CellState::Closed);
                 self.flag_count -= 1;
-            },
+            }
         };
     }
 
@@ -264,7 +295,6 @@ impl Display for Field {
 }
 
 //TODO fix the board continously going down with each subsequent move
-//TODO add functionality to uncover the whole set of 0s when clicking on one of them
 //TODO add mouse click support (supported by termion)
 
 //TODO add cli options:
@@ -285,7 +315,7 @@ fn main() {
     let mut field = Field::new(10, 10, 20);
 
     let stdin = stdin();
-    let mut stdout = stdout().into_raw_mode().unwrap();
+    let mut stdout = HideCursor::from(stdout().into_raw_mode().unwrap());
 
     write!(
         stdout,
@@ -356,7 +386,7 @@ fn main() {
             field.mine_count,
             field.flag_count
         );
-        if field.uncovered_empty_cells == 0 {
+        if field.covered_empty_cells == 0 {
             write!(
                 stdout,
                 "{}You won!{}",

@@ -91,6 +91,7 @@ struct Field {
     cols: usize,
     grid: Vec<Cell>,
     cursor: Cursor,
+    uncovered_empty_cells: usize,
 }
 
 impl Field {
@@ -100,6 +101,7 @@ impl Field {
         }
 
         let mut grid = Vec::with_capacity(rows * cols);
+        let mut uncovered_empty_cells = 0;
 
         // Generate random board
         let mut rng = thread_rng();
@@ -107,6 +109,7 @@ impl Field {
             let cell_content = if rng.gen_range(1..=100) <= bomb_percentage {
                 CellContent::Mine
             } else {
+                uncovered_empty_cells += 1;
                 CellContent::Empty
             };
 
@@ -153,7 +156,7 @@ impl Field {
             grid[row as usize*cols+col as usize].neighboring_bomb_count = count;
         }
 
-        Self { rows, cols, grid, cursor: Cursor { row: 0, col: 0 }}
+        Self { rows, cols, grid, cursor: Cursor { row: 0, col: 0 }, uncovered_empty_cells}
     }
 
     fn get(&self, row: usize, col: usize) -> Option<Cell> {
@@ -192,6 +195,7 @@ impl Field {
                 },
                 CellContent::Empty => {
                     //TODO open neighbors if they have 0 bombs?
+                    self.uncovered_empty_cells -= 1;
                 },
             }
         }
@@ -235,6 +239,7 @@ impl Display for Field {
 
 //TODO fix the board continously going down with time
 //TODO add functionality to uncover the whole set of 0s when clicking on one of them
+//TODO add mouse click support (supported by termion)
 
 //TODO add cli options:
 //  - widht
@@ -245,7 +250,8 @@ impl Display for Field {
 //          and the ones with the right amount of flags around them get printed green
 
 //TODO add a retry option
-//TODO check for victory
+//TODO generate board when clicking on first cell. Either generate a number or a whole area of numbers under the cursor in a way that the first tile cannot be a bomb.
+
 //TODO fix the colors not covering the whole board
 //TODO add more different colors for each bomb count
 //TODO when a match is lost, highlight the flags in the wrong place with a different color
@@ -263,23 +269,23 @@ fn main() {
     for c in stdin.events() {
         if let Event::Key(event) = c.unwrap() {
             match event {
-                Key::Char('q') => break,
-                Key::Char('w') | Key::Up => {
+                Key::Char('q') | Key::Char('Q') => break,
+                Key::Char('w') | Key::Char('W') | Key::Up => {
                     if field.cursor.row > 0 {
                         field.cursor.row -= 1;
                     }
                 },
-                Key::Char('a') | Key::Left => {
+                Key::Char('a') | Key::Char('A') |  Key::Left => {
                     if field.cursor.col > 0 {
                         field.cursor.col -= 1;
                     }
                 },
-                Key::Char('s') | Key::Down => {
+                Key::Char('s') | Key::Char('S') | Key::Down => {
                     if field.cursor.row < field.rows-1 {
                         field.cursor.row += 1;
                     }
                 },
-                Key::Char('d') | Key::Right => {
+                Key::Char('d') | Key::Char('D') | Key::Right => {
                     if field.cursor.col < field.cols-1{
                         field.cursor.col += 1;
                     }
@@ -287,19 +293,28 @@ fn main() {
                 Key::Char(' ') => {
                     match field.uncover_at_cursor() {
                         CellContent::Mine => {
-                            field.uncover_all();
-                            write!(stdout, "{}{}{field}",termion::clear::All, termion::cursor::Goto(1,1));
-                            println!("{}You lost!{}", color::Fg(color::LightRed), color::Fg(color::Reset));
-                            break;
+                            let cell = field.get(field.cursor.row, field.cursor.col).unwrap();
+                            if !matches!(cell.state, CellState::Flagged) { 
+                                field.uncover_all();
+                                write!(stdout, "{}{}{field}",termion::clear::All, termion::cursor::Goto(1,1));
+                                println!("{}You lost!{}", color::Fg(color::LightRed), color::Fg(color::Reset));
+                                break;
+                            }
                         },
                         CellContent::Empty => {},
                     }
                 },
-                Key::Char('f') => field.toggle_flag_at_cursor(),
+                Key::Char('f') | Key::Char('F') => field.toggle_flag_at_cursor(),
                 _ => {},
             }
         }
         write!(stdout, "{}{field}",termion::clear::All);
+        if field.uncovered_empty_cells == 0 {
+            write!(stdout, "{}You won!{}",color::Fg(color::Green), color::Fg(color::Reset));
+            stdout.flush().unwrap();
+            break;
+        }
         stdout.flush().unwrap();
+
     }
 }

@@ -1,7 +1,14 @@
 #![allow(dead_code, unused)]
 
-use rand::{seq::SliceRandom, thread_rng, Rng};
 use std::fmt::Display;
+use std::io::{Write, stdout, stdin};
+
+use rand::{seq::SliceRandom, thread_rng, Rng};
+
+use termion::event::{Key, Event, MouseEvent};
+use termion::input::{TermRead, MouseTerminal};
+use termion::raw::IntoRawMode;
+use termion::color;
 
 #[derive(Copy, Clone, Debug)]
 pub enum CellState {
@@ -22,11 +29,30 @@ pub enum CellContent {
     Empty,
 }
 
+struct Cursor {
+    row: usize,
+    col: usize,
+}
+
 impl Default for CellContent {
     fn default() -> Self {
         Self::Empty
     }
 }
+
+const NBOR_COUNT_TO_FG_COLOR: [color::Fg<&'static dyn color::Color>; 9] = [
+                                            color::Fg(&color::Reset),       // 0
+                                            color::Fg(&color::LightBlue),   // 1
+                                            color::Fg(&color::LightBlue),   // 2
+                                            color::Fg(&color::Blue),        // 3
+                                            color::Fg(&color::Blue),        // 4
+                                            color::Fg(&color::LightRed),    // 5
+                                            color::Fg(&color::LightRed),    // 6
+                                            color::Fg(&color::Red),         // 7
+                                            color::Fg(&color::Red),         // 8
+                                            ];
+
+const BG_COLOR: color::Bg<color::Rgb> = color::Bg(color::Rgb(40, 40, 40));
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Cell {
@@ -39,12 +65,24 @@ impl Display for Cell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.state {
             CellState::Open => match self.content {
-                CellContent::Mine => write!(f, "*"),
-                CellContent::Empty => write!(f, "{}", self.neighboring_bomb_count),
+                CellContent::Mine => write!(f, "{}*{}", color::Bg(color::Red), color::Bg(color::Reset)),
+                CellContent::Empty => write!(f, "{}{}{}{}{}", 
+                    BG_COLOR, 
+                    NBOR_COUNT_TO_FG_COLOR[self.neighboring_bomb_count], 
+                    self.neighboring_bomb_count, 
+                    color::Fg(color::Reset), 
+                    color::Bg(color::Reset)
+                ),
             },
             CellState::Closed => write!(f, "."),
-            CellState::Flagged => write!(f, "F"),
+            CellState::Flagged => write!(f, "{}F{}", color::Bg(color::Blue), color::Bg(color::Reset)),
         }
+    }
+}
+
+impl Cell {
+    fn set_state(&mut self, new_state: CellState) {
+        self.state = new_state;
     }
 }
 
@@ -52,6 +90,7 @@ struct Field {
     rows: usize,
     cols: usize,
     grid: Vec<Cell>,
+    cursor: Cursor,
 }
 
 impl Field {
@@ -72,7 +111,7 @@ impl Field {
             };
 
             let cell = Cell {
-                state: CellState::Open,
+                state: CellState::Closed,
                 content: cell_content,
                 neighboring_bomb_count: 0,
             };
@@ -114,7 +153,7 @@ impl Field {
             grid[row as usize*cols+col as usize].neighboring_bomb_count = count;
         }
 
-        Self { rows, cols, grid }
+        Self { rows, cols, grid, cursor: Cursor { row: 0, col: 0 }}
     }
 
     fn get(&self, row: usize, col: usize) -> Option<Cell> {
@@ -122,6 +161,13 @@ impl Field {
             return None;
         }
         Some(self.grid[row * self.cols + col])
+    }
+
+    fn get_mut(&mut self, row: usize, col: usize) -> Option<&mut Cell> {
+        if row > self.rows || col > self.cols {
+            return None;
+        }
+        Some(&mut self.grid[row * self.cols + col])
     }
 
     fn set(&mut self, row: usize, col: usize, new_value: Cell) -> Option<Cell> {
@@ -132,29 +178,112 @@ impl Field {
         self.grid[row * self.cols + col] = new_value;
         Some(old_val.unwrap())
     }
+
+    fn uncover_at_cursor(&mut self) -> CellContent {
+        let cell_under_cursor = self.get_mut(self.cursor.row, self.cursor.col).unwrap();
+        let old_content = cell_under_cursor.content.clone();
+
+        // if state is Open or Flagged, do nothing
+        if let CellState::Closed = cell_under_cursor.state {
+            cell_under_cursor.set_state(CellState::Open);
+            match cell_under_cursor.content {
+                CellContent::Mine => {
+                    // Do nothing, the caller will do stuff with the return value
+                },
+                CellContent::Empty => {
+                    //TODO open neighbors if they have 0 bombs?
+                },
+            }
+        }
+
+        old_content
+    }
+
+    fn toggle_flag_at_cursor(&mut self) {
+        let cell_under_cursor = self.get_mut(self.cursor.row, self.cursor.col).unwrap();
+        match cell_under_cursor.state {
+            CellState::Open => {},
+            CellState::Closed =>  cell_under_cursor.set_state(CellState::Flagged),
+            CellState::Flagged => cell_under_cursor.set_state(CellState::Closed),
+        };
+    }
+
+    fn uncover_all(&mut self) {
+        self.grid.iter_mut().for_each(|cell| cell.state = CellState::Open);
+    }
 }
 
 impl Display for Field {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut str_repr = "".to_string();
+        let mut str_repr = String::new(); //TODO use with_capacity()?
 
         for row in 0..self.rows {
-            let new_row_content = self
-                .grid
-                .iter()
-                .skip(row * self.cols)
-                .take(self.cols)
-                .map(|el| el.to_string())
-                .collect::<Vec<_>>()
-                .join("  ");
-            str_repr = format!("{}\n{}\n", str_repr, new_row_content);
+            for col in 0..self.cols {
+                let cell = self.get(row, col).unwrap();
+                if self.cursor.row == row && self.cursor.col == col {
+                    str_repr = format!("{BG_COLOR}{str_repr}[{cell}]{}", color::Bg(color::Reset));
+                } else {
+                    str_repr = format!("{BG_COLOR}{str_repr} {cell} {}", color::Bg(color::Reset));
+                }
+            }
+            str_repr = format!("{str_repr}\r\n");
         }
 
         write!(f, "{}", str_repr)
     }
 }
 
+//TODO print the number of the remaining bombs
+//TODO do not allow flagging when current_flag_count > bomb_count
 fn main() {
     let mut field = Field::new(10, 10, 20);
-    println!("{field}");
+
+    let stdin = stdin();
+    let mut stdout = stdout().into_raw_mode().unwrap();
+
+    write!(stdout, "{}{}{field}",termion::clear::All, termion::cursor::Goto(1,1 ));
+    stdout.flush().unwrap();
+
+    for c in stdin.events() {
+        if let Event::Key(event) = c.unwrap() {
+            match event {
+                Key::Char('q') => break,
+                Key::Char('w') | Key::Up => {
+                    if field.cursor.row > 0 {
+                        field.cursor.row -= 1;
+                    }
+                },
+                Key::Char('a') | Key::Left => {
+                    if field.cursor.col > 0 {
+                        field.cursor.col -= 1;
+                    }
+                },
+                Key::Char('s') | Key::Down => {
+                    if field.cursor.row < field.rows-1 {
+                        field.cursor.row += 1;
+                    }
+                },
+                Key::Char('d') | Key::Right => {
+                    if field.cursor.col < field.cols-1{
+                        field.cursor.col += 1;
+                    }
+                },
+                Key::Char(' ') => {
+                    match field.uncover_at_cursor() {
+                        CellContent::Mine => {
+                            field.uncover_all();
+                            write!(stdout, "{}{}{field}",termion::clear::All, termion::cursor::Goto(1,1));
+                            println!("{}You lost!{}", color::Fg(color::LightRed), color::Fg(color::Reset));
+                            break;
+                        },
+                        CellContent::Empty => {},
+                    }
+                },
+                Key::Char('f') => field.toggle_flag_at_cursor(),
+                _ => {},
+            }
+        }
+        write!(stdout, "{}{field}",termion::clear::All);
+        stdout.flush().unwrap();
+    }
 }

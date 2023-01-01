@@ -233,6 +233,22 @@ impl Display for Field {
     }
 }
 
+//TODO fix the board continously going down with time
+//TODO add functionality to uncover the whole set of 0s when clicking on one of them
+
+//TODO add cli options:
+//  - widht
+//  - height
+//  - bomb_percentage
+//  - presets like easy, hard, medium, ...
+//  - auto-counter or something like that. When this option is active, numbers that have too many flags around them turn bright red,
+//          and the ones with the right amount of flags around them get printed green
+
+//TODO add a retry option
+//TODO check for victory
+//TODO fix the colors not covering the whole board
+//TODO add more different colors for each bomb count
+//TODO when a match is lost, highlight the flags in the wrong place with a different color
 //TODO print the number of the remaining bombs
 //TODO do not allow flagging when current_flag_count > bomb_count
 fn main() {

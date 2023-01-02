@@ -5,6 +5,7 @@ edition = "2021"
 authors = ["fedfontana"]
 description = "TUI minesweeper"
 license = "MIT"
+repository = "https://github.com/fedfontana/minesweeper"
 
 [dependencies]
 clap = { version = "4.0.32", features = ["derive"] }

@@ -74,7 +74,7 @@ impl Display for Cell {
                     "{}{}{}{}{}",
                     BG_COLOR,
                     NBOR_COUNT_TO_FG_COLOR[self.neighbouring_bomb_count],
-                    self.neighbouring_bomb_count,
+                    if self.neighbouring_bomb_count != 0 { self.neighbouring_bomb_count.to_string() } else { " ".to_string() },
                     color::Fg(color::Reset),
                     color::Bg(color::Reset)
                 ),

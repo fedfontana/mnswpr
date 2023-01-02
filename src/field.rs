@@ -26,9 +26,21 @@ impl Field {
         }
     }
 
-    pub fn randomize(&mut self, mut mine_percentage: u8) {
-        if mine_percentage > 100 {
-            mine_percentage = 100;
+    /// Returns the tuple (row, col) corresponding to the index passed as input
+    fn idx_to_position(&self, idx: usize) -> (usize, usize) {
+        let row = idx / self.cols;
+        let col = idx % self.cols;
+        (row, col)
+    }
+
+    fn position_to_idx(&self, row: usize, col: usize) -> usize {
+        row * self.cols + col
+    }
+
+    /// Randomizes the content of the field keeping a safe area of 1 tile around the cursor
+    pub fn randomize(&mut self, mut mine_percentage: u8, current_row: usize, current_col: usize) {
+        if mine_percentage >= 100 {
+            mine_percentage = 99;
         }
 
         let mut covered_empty_cells = 0;
@@ -37,7 +49,8 @@ impl Field {
         // Generate random board
         let mut rng = thread_rng();
         for idx in 0..self.rows * self.cols {
-            let cell_content = if rng.gen_range(1..=100) <= mine_percentage {
+            let (row, col) = self.idx_to_position(idx);
+            let cell_content = if row.abs_diff(current_row) >= 1 && col.abs_diff(current_col) >= 1 && rng.gen_range(1..=100) <= mine_percentage {
                 mine_count += 1;
                 cell::Content::Mine
             } else {
@@ -189,23 +202,3 @@ impl Field {
             .for_each(|cell| cell.state = cell::State::Open);
     }
 }
-
-// impl Display for Field {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         let mut str_repr = String::new(); //TODO use with_capacity()? / implement this in a more efficient way
-
-//         for row in 0..self.rows {
-//             for col in 0..self.cols {
-//                 let cell = self.get(row, col).unwrap();
-//                 if self.cursor.row == row && self.cursor.col == col {
-//                     str_repr = format!("{str_repr}{BG_COLOR}[{cell}{BG_COLOR}]{}", color::Bg(color::Reset));
-//                 } else {
-//                     str_repr = format!("{str_repr}{BG_COLOR} {cell}{BG_COLOR} {}", color::Bg(color::Reset));
-//                 }
-//             }
-//             str_repr = format!("{str_repr}\r\n");
-//         }
-
-//         write!(f, "{}", str_repr)
-//     }
-// }

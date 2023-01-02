@@ -137,7 +137,6 @@ fn main() {
     let (cols, rows) = parse_field_size(&args);
 
     let mut game = Minesweeper::new(rows, cols, args.mine_percentage);
-    game.randomize_field();
 
     let stdin = stdin();
     let mut stdout = HideCursor::from(stdout().into_raw_mode().unwrap());
@@ -146,6 +145,8 @@ fn main() {
 
     game.print_game_state(&mut stdout);
     stdout.flush().unwrap();
+
+    let mut first_move = true;
 
     for c in stdin.events() {
         if let Event::Key(event) = c.unwrap() {
@@ -171,17 +172,24 @@ fn main() {
                         game.cursor.col += 1;
                     }
                 }
-                Key::Char(' ') => match game.field.uncover_at(game.cursor.row, game.cursor.col) {
-                    cell::Content::Mine => {
-                        let cell = game.field.get(game.cursor.row, game.cursor.col).unwrap();
-                        if !matches!(cell.state, cell::State::Flagged) {
-                            game.lose_screen(&mut stdout);
-                            break;
-                        }
+                Key::Char(' ') => {
+                    if first_move {
+                        game.randomize_field();
+                        first_move = false;
                     }
-                    cell::Content::Empty => {}
-                },
-                Key::Char('f') | Key::Char('F') => game.field.toggle_flag_at(game.cursor.row, game.cursor.col),
+
+                    match game.field.uncover_at(game.cursor.row, game.cursor.col) {
+                        cell::Content::Mine => {
+                            let cell = game.field.get(game.cursor.row, game.cursor.col).unwrap();
+                            if !matches!(cell.state, cell::State::Flagged) {
+                                game.lose_screen(&mut stdout);
+                                break;
+                            }
+                        }
+                        cell::Content::Empty => {}
+                    }
+                }, 
+                Key::Char('f') | Key::Char('F') if !first_move => game.field.toggle_flag_at(game.cursor.row, game.cursor.col),
                 _ => {}
             }
         }

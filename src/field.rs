@@ -26,7 +26,7 @@ impl Field {
         }
     }
 
-    pub fn randomize(&mut self, mut mine_percentage: usize) {
+    pub fn randomize(&mut self, mut mine_percentage: u8) {
         if mine_percentage > 100 {
             mine_percentage = 100;
         }

@@ -1,3 +1,11 @@
+#![warn(
+    clippy::all,
+    clippy::restriction,
+    clippy::pedantic,
+    clippy::nursery,
+    clippy::cargo,
+)]
+
 use std::fmt::Display;
 use std::io::{stdin, stdout, Write};
 use std::str::FromStr;

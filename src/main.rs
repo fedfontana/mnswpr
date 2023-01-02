@@ -13,21 +13,18 @@ use termion::raw::IntoRawMode;
 
 mod field;
 mod game;
+mod colors;
+mod cell;
 
-use field::{ Field, CellContent, CellState, Cell };
-
-
-
-//TODO split into files
-//TODO Game struct should be different from Field struct
-//TODO refactor
+use field::Field;
+use crate::game::Minesweeper;
 
 //TODO add mouse click support (supported by termion)?
 //TODO add docs and tests
 //TODO add cli options:
 //  - widht
 //  - height
-//  - bomb_percentage
+//  - mine_percentage
 //  - presets like easy, hard, medium, ...
 //  - auto-counter or something like that. When this option is active, numbers that have too many flags around them turn bright red,
 //          and the ones with the right amount of flags around them get printed green
@@ -41,20 +38,23 @@ use field::{ Field, CellContent, CellState, Cell };
 
 
 fn main() {
-    let mut field = Field::new(10, 10, 20);
+    let mut game = Minesweeper::new(10, 10, 20);
+    game.randomize_field();
 
     let stdin = stdin();
     let mut stdout = HideCursor::from(stdout().into_raw_mode().unwrap());
 
     write!(stdout, "{}{}", termion::clear::All, termion::cursor::Goto(1,1));
 
-    write!(
-        stdout,
-        "{}Mines:{}    Flags:{}\r\n{field}",
-        termion::cursor::Goto(1, 1),
-        field.mine_count,
-        field.flag_count
-    );
+    game.print_game_state(&mut stdout);
+
+    // write!(
+    //     stdout,
+    //     "{}Mines:{}    Flags:{}\r\n{field}",
+    //     termion::cursor::Goto(1, 1),
+    //     field.mine_count,
+    //     field.flag_count
+    // );
     stdout.flush().unwrap();
 
     for c in stdin.events() {
@@ -62,40 +62,33 @@ fn main() {
             match event {
                 Key::Char('q') | Key::Char('Q') => break,
                 Key::Char('w') | Key::Char('W') | Key::Up => {
-                    if field.cursor.row > 0 {
-                        field.cursor.row -= 1;
+                    if game.cursor.row > 0 {
+                        game.cursor.row -= 1;
                     }
                 }
                 Key::Char('a') | Key::Char('A') | Key::Left => {
-                    if field.cursor.col > 0 {
-                        field.cursor.col -= 1;
+                    if game.cursor.col > 0 {
+                        game.cursor.col -= 1;
                     }
                 }
                 Key::Char('s') | Key::Char('S') | Key::Down => {
-                    if field.cursor.row < field.rows - 1 {
-                        field.cursor.row += 1;
+                    if game.cursor.row < game.rows - 1 {
+                        game.cursor.row += 1;
                     }
                 }
                 Key::Char('d') | Key::Char('D') | Key::Right => {
-                    if field.cursor.col < field.cols - 1 {
-                        field.cursor.col += 1;
+                    if game.cursor.col < game.cols - 1 {
+                        game.cursor.col += 1;
                     }
                 }
-                Key::Char(' ') => match field.uncover_at_cursor() {
-                    CellContent::Mine => {
-                        let cell = field.get(field.cursor.row, field.cursor.col).unwrap();
-                        if !matches!(cell.state, CellState::Flagged) {
-                            field.uncover_all();
+                Key::Char(' ') => match game.field.uncover_at(game.cursor.row, game.cursor.col) {
+                    cell::Content::Mine => {
+                        let cell = game.field.get(game.cursor.row, game.cursor.col).unwrap();
+                        if !matches!(cell.state, cell::State::Flagged) {
+                            game.field.uncover_all();
+                            game.print_field_game_lost(&mut stdout);
                             write!(
-                                stdout,
-                                "{}{}Mines:{}    Flags:{}\r\n{field}",
-                                termion::cursor::Goto(1, 1),
-                                termion::clear::CurrentLine,
-                                field.mine_count,
-                                field.flag_count
-                            );
-                            write!(
-                                stdout,
+                                &mut stdout,
                                 "{}You lost!{}\r\n",
                                 color::Fg(color::LightRed),
                                 color::Fg(color::Reset)
@@ -103,23 +96,24 @@ fn main() {
                             break;
                         }
                     }
-                    CellContent::Empty => {}
+                    cell::Content::Empty => {}
                 },
-                Key::Char('f') | Key::Char('F') => field.toggle_flag_at_cursor(),
+                Key::Char('f') | Key::Char('F') => game.field.toggle_flag_at(game.cursor.row, game.cursor.col),
                 _ => {}
             }
         }
-        write!(
-            stdout,
-            "{}{}Mines:{}    Flags:{}\r\n{field}",
-            termion::cursor::Goto(1, 1),
-            termion::clear::CurrentLine,
-            field.mine_count,
-            field.flag_count
-        );
-        if field.covered_empty_cells == 0 {
+        game.print_game_state(&mut stdout);
+        // write!(
+        //     stdout,
+        //     "{}{}Mines:{}    Flags:{}\r\n{field}",
+        //     termion::cursor::Goto(1, 1),
+        //     termion::clear::CurrentLine,
+        //     field.mine_count,
+        //     field.flag_count
+        // );
+        if game.field.covered_empty_cells == 0 {
             write!(
-                stdout,
+                &mut stdout,
                 "{}You won!{}\r\n",
                 color::Fg(color::Green),
                 color::Fg(color::Reset)

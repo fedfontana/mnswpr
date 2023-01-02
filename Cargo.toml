@@ -1,5 +1,5 @@
 [package]
-name = "minesweeper"
+name = "mnswpr"
 version = "0.1.0"
 edition = "2021"
 authors = ["fedfontana"]

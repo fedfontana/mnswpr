@@ -297,6 +297,7 @@ impl Display for Field {
 //TODO split into files
 //TODO Game struct should be different from Field struct
 //TODO refactor
+
 //TODO add mouse click support (supported by termion)?
 //TODO add docs and tests
 //TODO add cli options:
@@ -308,12 +309,12 @@ impl Display for Field {
 //          and the ones with the right amount of flags around them get printed green
 
 //TODO add a retry option after concluding a match
+//TODO when a match is lost, highlight the flags in the wrong place with a different color
+//TODO add bg color for uncovered cells (the original gray (185, 185, 185))
 //TODO generate board when clicking on first cell. 
 //  - Either generate a number or a whole area of numbers under the cursor in a way that the first tile cannot be a bomb.
 
 
-//TODO add bg color for uncovered cells (the original gray (185, 185, 185))
-//TODO when a match is lost, highlight the flags in the wrong place with a different color
 
 fn main() {
     let mut field = Field::new(10, 10, 20);

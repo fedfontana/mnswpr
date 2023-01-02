@@ -73,7 +73,7 @@ impl FromStr for SizePreset {
 ///
 /// Move the cursor with either wasd, hjkl or the arrows.
 ///
-/// Flag/unflag the cell under the cursor by pressing f, or uncover it by pressing the spacebar or enter.
+/// Flag/unflag the cell under the cursor by pressing f, or uncover it by pressing <space> or <insert>.
 #[derive(Parser)]
 #[command(author, version, about)]
 struct Args {

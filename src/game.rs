@@ -38,7 +38,7 @@ impl Minesweeper {
     }
 
     pub fn print_field(&self, f: &mut impl Write, palette: &Palette) {
-        let mut str_repr = String::new(); //TODO use with_capacity()? / implement this in a more efficient way
+        let mut str_repr = String::with_capacity(self.rows * self.cols * 3 * 2);
 
         for row in 0..self.rows {
             for col in 0..self.cols {
@@ -65,7 +65,7 @@ impl Minesweeper {
     }
 
     pub fn print_field_game_lost(&self, f: &mut impl Write, palette: &Palette) {
-        let mut str_repr = String::new(); //TODO use with_capacity()? / implement this in a more efficient way
+        let mut str_repr = String::with_capacity(self.rows * self.cols * 3 * 2);
 
         for row in 0..self.rows {
             for col in 0..self.cols {

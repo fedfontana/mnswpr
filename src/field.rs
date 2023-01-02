@@ -54,12 +54,15 @@ impl Field {
         let mut rng = thread_rng();
         for idx in 0..self.rows * self.cols {
             let (row, col) = self.idx_to_position(idx);
-            let cell_content = if row.abs_diff(current_row) >= 1
-                && col.abs_diff(current_col) >= 1
-                && rng.gen_range(1..=100) <= mine_percentage
-            {
-                mine_count += 1;
-                cell::Content::Mine
+
+            let cell_content = if rng.gen_range(1..=100) <= mine_percentage {
+                if row.abs_diff(current_row) < 2 && col.abs_diff(current_col) < 2  {
+                    covered_empty_cells += 1;
+                    cell::Content::Empty
+                } else {
+                    mine_count += 1;
+                    cell::Content::Mine
+                }
             } else {
                 covered_empty_cells += 1;
                 cell::Content::Empty

@@ -164,27 +164,27 @@ fn main() {
                     break
                 }
                 Key::Char('q') | Key::Char('Q') => break,
-                Key::Char('w') | Key::Char('W') | Key::Char('k') | Key::Char('K') | Key::Up => {
+                Key::Char('w') | Key::Char('W') | Key::Char('k') | Key::Char('K') | Key::Up if !ask_play_again => {
                     if game.cursor.row > 0 {
                         game.cursor.row -= 1;
                     }
                 }
-                Key::Char('a') | Key::Char('A') | Key::Char('h') | Key::Char('H') | Key::Left => {
+                Key::Char('a') | Key::Char('A') | Key::Char('h') | Key::Char('H') | Key::Left if !ask_play_again => {
                     if game.cursor.col > 0 {
                         game.cursor.col -= 1;
                     }
                 }
-                Key::Char('s') | Key::Char('S') | Key::Char('j') | Key::Char('J') | Key::Down => {
+                Key::Char('s') | Key::Char('S') | Key::Char('j') | Key::Char('J') | Key::Down if !ask_play_again => {
                     if game.cursor.row < game.rows - 1 {
                         game.cursor.row += 1;
                     }
                 }
-                Key::Char('d') | Key::Char('D') | Key::Char('l') | Key::Char('L') | Key::Right => {
+                Key::Char('d') | Key::Char('D') | Key::Char('l') | Key::Char('L') | Key::Right if !ask_play_again => {
                     if game.cursor.col < game.cols - 1 {
                         game.cursor.col += 1;
                     }
                 }
-                Key::Char(' ') | Key::Insert => {
+                Key::Char(' ') | Key::Insert if !ask_play_again => {
                     if first_move {
                         game.randomize_field();
                         first_move = false;
@@ -197,7 +197,7 @@ fn main() {
                         ask_play_again = true;
                     }
                 }
-                Key::Char('f') | Key::Char('F') if !first_move => {
+                Key::Char('f') | Key::Char('F') if !first_move && !ask_play_again => {
                     game.field.toggle_flag_at(game.cursor.row, game.cursor.col)
                 }
                 _ => {}

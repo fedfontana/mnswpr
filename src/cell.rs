@@ -1,4 +1,5 @@
 use crate::colors::{self, BG_RESET, FG_RESET};
+use termion::color;
 
 #[derive(Copy, Clone, Debug)]
 pub enum State {
@@ -83,6 +84,30 @@ impl Cell {
             State::Flagged => {
                 format!("{}F{BG_RESET}", palette.flag_bg)
             }
+        }
+    }
+
+    pub fn to_string_with_palette_lost(&self, palette: &colors::Palette) -> String {
+        match (self.state, self.content) {
+            (State::Flagged, Content::Mine) => format!("{}*{BG_RESET}", color::Bg(color::Green)),
+            (State::Flagged, Content::Empty) => {
+                format!(
+                    "{bg}{count}{BG_RESET}",
+                    bg=color::Bg(color::LightRed),
+                    count=self.neighbouring_bomb_count,
+                )
+            }
+            (_, Content::Mine) => format!("{}*{BG_RESET}", palette.mine_bg),
+            (_, Content::Empty) => format!(
+                "{bg}{fg}{count}{FG_RESET}{BG_RESET}",
+                bg = palette.bg,
+                fg = palette.neighbour_count_to_fg_color[self.neighbouring_bomb_count],
+                count = if self.neighbouring_bomb_count != 0 {
+                    self.neighbouring_bomb_count.to_string()
+                } else {
+                    " ".to_string()
+                },
+            ),
         }
     }
 }

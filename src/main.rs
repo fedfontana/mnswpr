@@ -47,14 +47,6 @@ fn main() {
     write!(stdout, "{}{}", termion::clear::All, termion::cursor::Goto(1,1));
 
     game.print_game_state(&mut stdout);
-
-    // write!(
-    //     stdout,
-    //     "{}Mines:{}    Flags:{}\r\n{field}",
-    //     termion::cursor::Goto(1, 1),
-    //     field.mine_count,
-    //     field.flag_count
-    // );
     stdout.flush().unwrap();
 
     for c in stdin.events() {
@@ -85,14 +77,7 @@ fn main() {
                     cell::Content::Mine => {
                         let cell = game.field.get(game.cursor.row, game.cursor.col).unwrap();
                         if !matches!(cell.state, cell::State::Flagged) {
-                            game.field.uncover_all();
-                            game.print_field_game_lost(&mut stdout);
-                            write!(
-                                &mut stdout,
-                                "{}You lost!{}\r\n",
-                                color::Fg(color::LightRed),
-                                color::Fg(color::Reset)
-                            );
+                            game.lose_screen(&mut stdout);
                             break;
                         }
                     }
@@ -103,14 +88,6 @@ fn main() {
             }
         }
         game.print_game_state(&mut stdout);
-        // write!(
-        //     stdout,
-        //     "{}{}Mines:{}    Flags:{}\r\n{field}",
-        //     termion::cursor::Goto(1, 1),
-        //     termion::clear::CurrentLine,
-        //     field.mine_count,
-        //     field.flag_count
-        // );
         if game.field.covered_empty_cells == 0 {
             write!(
                 &mut stdout,
@@ -121,6 +98,6 @@ fn main() {
             stdout.flush().unwrap();
             break;
         }
-        stdout.flush().unwrap();
     }
+    stdout.flush().unwrap();
 }

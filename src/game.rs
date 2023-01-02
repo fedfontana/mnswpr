@@ -1,6 +1,6 @@
-use std::{fmt::Display, io::Write};
+use std::io::Write;
 
-use crate::colors::{Palette, BG_RESET, DEFAULT_PALETTE, FG_RESET};
+use crate::colors::{Palette, BG_RESET, DEFAULT_PALETTE};
 use crate::field::Field;
 use termion::color;
 
@@ -26,6 +26,10 @@ impl Minesweeper {
             cols,
             mine_percentage,
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.field.reset();
     }
 
     pub fn randomize_field(&mut self) {
@@ -57,7 +61,7 @@ impl Minesweeper {
             str_repr = format!("{str_repr}\r\n");
         }
 
-        write!(f, "{}", str_repr);
+        write!(f, "{str_repr}").unwrap();
     }
 
     pub fn print_field_game_lost(&self, f: &mut impl Write, palette: &Palette) {
@@ -84,7 +88,7 @@ impl Minesweeper {
             str_repr = format!("{str_repr}\r\n");
         }
 
-        write!(f, "{}", str_repr);
+        write!(f, "{str_repr}").unwrap();
     }
 
     /// Prints the game state. Prints bomb count and flag count and appends the output of `self.print_field` to it
@@ -95,7 +99,7 @@ impl Minesweeper {
             termion::cursor::Goto(1, 1),
             self.field.mine_count,
             self.field.flag_count
-        );
+        ).unwrap();
         self.print_field(f, &DEFAULT_PALETTE);
         f.flush().unwrap();
     }
@@ -107,34 +111,14 @@ impl Minesweeper {
             termion::cursor::Goto(1, 1),
             self.field.mine_count,
             self.field.flag_count
-        );
+        ).unwrap();
         self.print_field_game_lost(f, &DEFAULT_PALETTE);
         write!(
             f,
             "{}You lost!{}\r\n",
             color::Fg(color::LightRed),
             color::Fg(color::Reset)
-        );
+        ).unwrap();
         f.flush().unwrap();
     }
 }
-
-// impl Display for Field {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         let mut str_repr = String::new(); //TODO use with_capacity()? / implement this in a more efficient way
-
-//         for row in 0..self.rows {
-//             for col in 0..self.cols {
-//                 let cell = self.get(row, col).unwrap();
-//                 if self.cursor.row == row && self.cursor.col == col {
-//                     str_repr = format!("{str_repr}{BG_COLOR}[{cell}{BG_COLOR}]{}", color::Bg(color::Reset));
-//                 } else {
-//                     str_repr = format!("{str_repr}{BG_COLOR} {cell}{BG_COLOR} {}", color::Bg(color::Reset));
-//                 }
-//             }
-//             str_repr = format!("{str_repr}\r\n");
-//         }
-
-//         write!(f, "{}", str_repr)
-//     }
-// }

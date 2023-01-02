@@ -1,16 +1,13 @@
-#![allow(dead_code, unused)]
-
 use std::fmt::Display;
 use std::io::{stdin, stdout, Write};
 use std::str::FromStr;
 
 use clap::{command, Parser};
-use rand::{seq::SliceRandom, thread_rng, Rng};
 
 use termion::color;
 use termion::cursor::HideCursor;
-use termion::event::{Event, Key, MouseEvent};
-use termion::input::{MouseTerminal, TermRead};
+use termion::event::{Event, Key};
+use termion::input::TermRead;
 use termion::raw::IntoRawMode;
 
 mod cell;
@@ -19,16 +16,9 @@ mod field;
 mod game;
 
 use crate::game::Minesweeper;
-use field::Field;
 
-//TODO add mouse click support (supported by termion)?
 //TODO add docs and tests
 //TODO run under the strictest clippy
-
-//TODO decide what to do with `Palette`s
-
-//TODO add a retry option after concluding a match
-//TODO add bg color for uncovered cells (the original gray (185, 185, 185))
 
 #[derive(Clone)]
 enum SizePreset {
@@ -144,16 +134,38 @@ fn main() {
         "{}{}",
         termion::clear::All,
         termion::cursor::Goto(1, 1)
-    );
+    ).unwrap();
 
     game.print_game_state(&mut stdout);
     stdout.flush().unwrap();
 
+    let mut lost = false;
+    let mut ask_play_again = false;
     let mut first_move = true;
 
     for c in stdin.events() {
         if let Event::Key(event) = c.unwrap() {
             match event {
+                Key::Char(' ') | Key::Char('y') | Key::Char('Y') | Key::Insert
+                    if ask_play_again =>
+                {
+                    lost = false;
+                    ask_play_again = false;
+                    first_move = true;
+
+                    write!(
+                        stdout,
+                        "{}{}",
+                        termion::clear::All,
+                        termion::cursor::Goto(1, 1)
+                    ).unwrap();
+                    game.reset();
+                }
+                Key::Char('q') | Key::Char('Q') | Key::Char('n') | Key::Char('N')
+                    if ask_play_again =>
+                {
+                    break
+                }
                 Key::Char('q') | Key::Char('Q') => break,
                 Key::Char('w') | Key::Char('W') | Key::Char('k') | Key::Char('K') | Key::Up => {
                     if game.cursor.row > 0 {
@@ -175,7 +187,7 @@ fn main() {
                         game.cursor.col += 1;
                     }
                 }
-                Key::Char(' ') => {
+                Key::Char(' ') | Key::Insert => {
                     if first_move {
                         game.randomize_field();
                         first_move = false;
@@ -183,7 +195,9 @@ fn main() {
 
                     if game.field.uncover_at(game.cursor.row, game.cursor.col) {
                         game.lose_screen(&mut stdout);
-                        break;
+                        write!(stdout, "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n").unwrap();
+                        lost = true;
+                        ask_play_again = true;
                     }
                 }
                 Key::Char('f') | Key::Char('F') if !first_move => {
@@ -192,16 +206,22 @@ fn main() {
                 _ => {}
             }
         }
-        game.print_game_state(&mut stdout);
-        if game.field.covered_empty_cells == 0 {
-            write!(
-                &mut stdout,
-                "{}You won!{}\r\n",
-                color::Fg(color::Green),
-                color::Fg(color::Reset)
-            );
-            stdout.flush().unwrap();
-            break;
+        if !lost {
+            game.print_game_state(&mut stdout);
+            if game.field.covered_empty_cells == 0 {
+                write!(
+                    &mut stdout,
+                    "{}You won!{}\r\n",
+                    color::Fg(color::Green),
+                    color::Fg(color::Reset)
+                ).unwrap();
+                stdout.flush().unwrap();
+                write!(
+                    stdout,
+                    "Do you want to play again? Press y/Y/<space>/<insert> if yes, n/N if no\r\n"
+                ).unwrap();
+                ask_play_again = true;
+            }
         }
     }
     stdout.flush().unwrap();

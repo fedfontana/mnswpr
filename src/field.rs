@@ -1,7 +1,4 @@
-use std::fmt::Display;
-
 use rand::{thread_rng, Rng};
-use termion::color;
 
 use crate::cell;
 
@@ -24,6 +21,13 @@ impl Field {
             mine_count: 0,
             flag_count: 0,
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.grid = vec![cell::Cell::default(); self.rows * self.cols];
+        self.covered_empty_cells = self.rows * self.cols;
+        self.mine_count = 0;
+        self.flag_count = 0;
     }
 
     /// Returns the tuple (row, col) corresponding to the index passed as input
@@ -107,7 +111,7 @@ impl Field {
                     }
                 }
             }
-            let idx = self.position_to_idx(row as usize, col as usize);
+            let idx = self.position_to_idx(row, col);
             self.grid[idx].neighbouring_bomb_count = count;
         }
     }
@@ -124,15 +128,6 @@ impl Field {
             return None;
         }
         Some(&mut self.grid[row * self.cols + col])
-    }
-
-    pub fn set(&mut self, row: usize, col: usize, new_value: cell::Cell) -> Option<cell::Cell> {
-        let old_val = self.get(row, col);
-        if old_val.is_none() {
-            return None;
-        }
-        self.grid[row * self.cols + col] = new_value;
-        Some(old_val.unwrap())
     }
 
     fn uncover_rec(field: &mut Field, current_row: isize, current_col: isize) {
@@ -204,11 +199,5 @@ impl Field {
                 self.flag_count -= 1;
             }
         };
-    }
-
-    pub fn uncover_all(&mut self) {
-        self.grid
-            .iter_mut()
-            .for_each(|cell| cell.state = cell::State::Open);
     }
 }

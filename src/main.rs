@@ -29,8 +29,6 @@ use crate::game::Minesweeper;
 
 //TODO add a retry option after concluding a match
 //TODO add bg color for uncovered cells (the original gray (185, 185, 185))
-//TODO generate board when clicking on first cell. 
-//  - Either generate a number or a whole area of numbers under the cursor in a way that the first tile cannot be a bomb.
 
 #[derive(Clone)]
 enum SizePreset {

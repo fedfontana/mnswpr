@@ -76,17 +76,16 @@ impl Field {
         // Update the counters of the neighbouring mines for each mine
         for idx in 0..self.rows * self.cols {
             let mut count = 0;
-            let row = (idx / self.cols) as isize;
-            let col = (idx % self.cols) as isize;
-            for delta_row in -1..=1 {
-                for delta_col in -1..=1 {
+            let (row, col) = self.idx_to_position(idx);
+            for delta_row in -1isize..=1 {
+                for delta_col in -1isize..=1 {
                     // Do not count the current cell
                     if delta_col == 0 && delta_row == 0 {
                         continue;
                     }
 
-                    let current_row = row + delta_row;
-                    let current_col = col + delta_col;
+                    let current_row = row as isize + delta_row;
+                    let current_col = col as isize + delta_col;
                     // Do not consider out of bounds cells
                     if current_row >= self.rows as isize
                         || current_col >= self.cols as isize
@@ -96,14 +95,15 @@ impl Field {
                         continue;
                     }
 
-                    match self.grid[current_row as usize * self.cols + current_col as usize].content
+                    match self.grid[self.position_to_idx(current_row as usize, current_col as usize)].content
                     {
                         cell::Content::Mine => count += 1,
                         cell::Content::Empty => {}
                     }
                 }
             }
-            self.grid[row as usize * self.cols + col as usize].neighbouring_bomb_count = count;
+            let idx = self.position_to_idx(row as usize, col as usize);
+            self.grid[idx].neighbouring_bomb_count = count;
         }
     }
 

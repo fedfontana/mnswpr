@@ -2,6 +2,7 @@
 
 use std::fmt::Display;
 use std::io::{stdin, stdout, Write};
+use std::str::FromStr;
 
 use clap::{Parser, command};
 use rand::{seq::SliceRandom, thread_rng, Rng};
@@ -11,8 +12,6 @@ use termion::cursor::HideCursor;
 use termion::event::{Event, Key, MouseEvent};
 use termion::input::{MouseTerminal, TermRead};
 use termion::raw::IntoRawMode;
-
-
 
 mod field;
 mod game;
@@ -25,24 +24,61 @@ use crate::game::Minesweeper;
 //TODO add mouse click support (supported by termion)?
 //TODO add docs and tests
 //TODO run under the strictest clippy
-//TODO add cli options:
-//  - widht
-//  - height
-//  - mine_percentage
-//  - presets like easy, hard, medium, ...
-//  - auto-counter or something like that. When this option is active, numbers that have too many flags around them turn bright red,
-//          and the ones with the right amount of flags around them get printed green
+
+//TODO decide what to do with `Palette`s
 
 //TODO add a retry option after concluding a match
 //TODO add bg color for uncovered cells (the original gray (185, 185, 185))
 //TODO generate board when clicking on first cell. 
 //  - Either generate a number or a whole area of numbers under the cursor in a way that the first tile cannot be a bomb.
 
-fn percentage_validator(v: usize) -> Result<(), String> {
-    if v < 100 && v > 0 {
-        Ok(())
-    } else {
-        Err("The value of --mine-percentage must be in the range (0,100)".to_string())
+#[derive(Clone)]
+enum SizePreset {
+    Tiny,
+    Small,
+    Medium,
+    Large,
+    Huge,
+}
+
+impl SizePreset {
+    /// Returns the pair (columns, rows) corresponding the preset
+    fn to_size(&self) -> (u64, u64) {
+        match self {
+            SizePreset::Tiny => (20, 13),
+            SizePreset::Small => (30, 20),
+            SizePreset::Medium => (40, 25),
+            SizePreset::Large => (50, 30),
+            SizePreset::Huge => (60, 40),
+        }
+    }
+}
+
+impl Display for SizePreset {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            SizePreset::Tiny => "tiny",
+            SizePreset::Small => "small",
+            SizePreset::Medium => "medium",
+            SizePreset::Large => "large",
+            SizePreset::Huge => "huge",
+        };
+        write!(f, "{name}")
+    }
+}
+
+impl FromStr for SizePreset {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "tiny" => Ok(SizePreset::Tiny),
+            "small" => Ok(SizePreset::Small),
+            "medium" => Ok(SizePreset::Medium),
+            "large" => Ok(SizePreset::Large),
+            "huge" => Ok(SizePreset::Huge),
+            v => Err(format!("Expected one of \"tiny\", \"small\", \"medium\", \"large\", \"huge\". Got \"{v}\""))
+        }
     }
 }
 
@@ -56,25 +92,49 @@ fn percentage_validator(v: usize) -> Result<(), String> {
 #[command(author, version, about)]
 struct Args {
     /// The number of columns of the field. Must be greater than 1.
-    #[arg(long="columns", default_value_t=30, value_parser=clap::value_parser!(u64).range(1..))]
-    cols: u64,
+    #[arg(short, long="columns", value_parser=clap::value_parser!(u64).range(1..))]
+    cols: Option<u64>,
 
     /// The number of rows of the field. Must be greater than 1.
-    #[arg(long, default_value_t=20, value_parser=clap::value_parser!(u64).range(1..))]
-    rows: u64,
+    #[arg(short, long, value_parser=clap::value_parser!(u64).range(1..))]
+    rows: Option<u64>,
 
     /// The percentage of mines in the field. Must be in the range (1, 100).
     #[arg(short, long, default_value_t=20, value_parser=clap::value_parser!(u8).range(1..100))]
     mine_percentage: u8,
+
+    /// The size preset of the field. Note that `-c` and `-r` take precendence over the preset.
+    #[arg(short, long, default_value_t=SizePreset::Tiny)]
+    preset: SizePreset,
+}
+
+/// Returns (cols, rows) after parsing the cli arguments and clipping them with the size of the terminal minus some chars for padding
+fn parse_field_size(args: &Args) -> (usize, usize) {
+    let termsize = termion::terminal_size().unwrap();
+
+    let cols = if args.cols.is_some() {
+        args.cols.unwrap()
+    } else {
+        args.preset.to_size().0
+    };
+    // -2 is to have a little bit of padding, division by 3 is because we need to have enough space to print 3 chars for each tile
+    let cols = (cols).min((termsize.0 as u64 -2)/3) as usize;
+
+    let rows = if args.rows.is_some() {
+        args.rows.unwrap()
+    } else {
+        args.preset.to_size().1
+    };
+    let rows = rows.min(termsize.1 as u64 -4) as usize;
+
+    (cols, rows)
 }
 
 
 fn main() {
     let args = Args::parse();
 
-    let termsize = termion::terminal_size().unwrap();
-    let cols = args.cols.min(termsize.0 as u64 - 2) as usize;
-    let rows = args.rows.min(termsize.1 as u64 - 4) as usize;
+    let (cols, rows) = parse_field_size(&args);
 
     let mut game = Minesweeper::new(rows, cols, args.mine_percentage);
     game.randomize_field();

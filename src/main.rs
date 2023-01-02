@@ -282,9 +282,9 @@ impl Display for Field {
             for col in 0..self.cols {
                 let cell = self.get(row, col).unwrap();
                 if self.cursor.row == row && self.cursor.col == col {
-                    str_repr = format!("{BG_COLOR}{str_repr}[{cell}]{}", color::Bg(color::Reset));
+                    str_repr = format!("{str_repr}{BG_COLOR}[{cell}{BG_COLOR}]{}", color::Bg(color::Reset));
                 } else {
-                    str_repr = format!("{BG_COLOR}{str_repr} {cell} {}", color::Bg(color::Reset));
+                    str_repr = format!("{str_repr}{BG_COLOR} {cell}{BG_COLOR} {}", color::Bg(color::Reset));
                 }
             }
             str_repr = format!("{str_repr}\r\n");

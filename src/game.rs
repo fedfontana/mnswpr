@@ -14,11 +14,11 @@ pub struct Minesweeper {
     pub cursor: Cursor,
     pub rows: usize,
     pub cols: usize,
-    mine_percentage: usize,
+    mine_percentage: u8,
 }
 
 impl Minesweeper {
-    pub fn new(rows: usize, cols: usize, mine_percentage: usize) -> Self {
+    pub fn new(rows: usize, cols: usize, mine_percentage: u8) -> Self {
         Self {
             cursor: Cursor { row: 0, col: 0 },
             field: Field::new(rows, cols),

@@ -4,7 +4,7 @@ use std::fmt::Display;
 use std::io::{stdin, stdout, Write};
 use std::str::FromStr;
 
-use clap::{Parser, command};
+use clap::{command, Parser};
 use rand::{seq::SliceRandom, thread_rng, Rng};
 
 use termion::color;
@@ -13,13 +13,13 @@ use termion::event::{Event, Key, MouseEvent};
 use termion::input::{MouseTerminal, TermRead};
 use termion::raw::IntoRawMode;
 
+mod cell;
+mod colors;
 mod field;
 mod game;
-mod colors;
-mod cell;
 
-use field::Field;
 use crate::game::Minesweeper;
+use field::Field;
 
 //TODO add mouse click support (supported by termion)?
 //TODO add docs and tests
@@ -75,16 +75,17 @@ impl FromStr for SizePreset {
             "medium" => Ok(SizePreset::Medium),
             "large" => Ok(SizePreset::Large),
             "huge" => Ok(SizePreset::Huge),
-            v => Err(format!("Expected one of \"tiny\", \"small\", \"medium\", \"large\", \"huge\". Got \"{v}\""))
+            v => Err(format!(
+                "Expected one of \"tiny\", \"small\", \"medium\", \"large\", \"huge\". Got \"{v}\""
+            )),
         }
     }
 }
 
-
-/// A simple minesweeper game for the terminal. 
-/// 
+/// A simple minesweeper game for the terminal.
+///
 /// Move the cursor with either wasd, hjkl or the arrows.
-/// 
+///
 /// Flag/unflag the cell under the cursor by pressing f, or uncover it by pressing the spacebar or enter.
 #[derive(Parser)]
 #[command(author, version, about)]
@@ -116,18 +117,17 @@ fn parse_field_size(args: &Args) -> (usize, usize) {
         args.preset.to_size().0
     };
     // -2 is to have a little bit of padding, division by 3 is because we need to have enough space to print 3 chars for each tile
-    let cols = (cols).min((termsize.0 as u64 -2)/3) as usize;
+    let cols = (cols).min((termsize.0 as u64 - 2) / 3) as usize;
 
     let rows = if args.rows.is_some() {
         args.rows.unwrap()
     } else {
         args.preset.to_size().1
     };
-    let rows = rows.min(termsize.1 as u64 -4) as usize;
+    let rows = rows.min(termsize.1 as u64 - 4) as usize;
 
     (cols, rows)
 }
-
 
 fn main() {
     let args = Args::parse();
@@ -139,7 +139,12 @@ fn main() {
     let stdin = stdin();
     let mut stdout = HideCursor::from(stdout().into_raw_mode().unwrap());
 
-    write!(stdout, "{}{}", termion::clear::All, termion::cursor::Goto(1,1));
+    write!(
+        stdout,
+        "{}{}",
+        termion::clear::All,
+        termion::cursor::Goto(1, 1)
+    );
 
     game.print_game_state(&mut stdout);
     stdout.flush().unwrap();
@@ -155,17 +160,17 @@ fn main() {
                         game.cursor.row -= 1;
                     }
                 }
-                Key::Char('a') | Key::Char('A') |  Key::Char('h') | Key::Char('H') | Key::Left => {
+                Key::Char('a') | Key::Char('A') | Key::Char('h') | Key::Char('H') | Key::Left => {
                     if game.cursor.col > 0 {
                         game.cursor.col -= 1;
                     }
                 }
-                Key::Char('s') | Key::Char('S') |  Key::Char('j') | Key::Char('J') | Key::Down => {
+                Key::Char('s') | Key::Char('S') | Key::Char('j') | Key::Char('J') | Key::Down => {
                     if game.cursor.row < game.rows - 1 {
                         game.cursor.row += 1;
                     }
                 }
-                Key::Char('d') | Key::Char('D') |  Key::Char('l') | Key::Char('L') | Key::Right => {
+                Key::Char('d') | Key::Char('D') | Key::Char('l') | Key::Char('L') | Key::Right => {
                     if game.cursor.col < game.cols - 1 {
                         game.cursor.col += 1;
                     }
@@ -176,18 +181,14 @@ fn main() {
                         first_move = false;
                     }
 
-                    match game.field.uncover_at(game.cursor.row, game.cursor.col) {
-                        cell::Content::Mine => {
-                            let cell = game.field.get(game.cursor.row, game.cursor.col).unwrap();
-                            if !matches!(cell.state, cell::State::Flagged) {
-                                game.lose_screen(&mut stdout);
-                                break;
-                            }
-                        }
-                        cell::Content::Empty => {}
+                    if game.field.uncover_at(game.cursor.row, game.cursor.col) {
+                        game.lose_screen(&mut stdout);
+                        break;
                     }
-                }, 
-                Key::Char('f') | Key::Char('F') if !first_move => game.field.toggle_flag_at(game.cursor.row, game.cursor.col),
+                }
+                Key::Char('f') | Key::Char('F') if !first_move => {
+                    game.field.toggle_flag_at(game.cursor.row, game.cursor.col)
+                }
                 _ => {}
             }
         }

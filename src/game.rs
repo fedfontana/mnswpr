@@ -1,8 +1,8 @@
 use std::{fmt::Display, io::Write};
 
-use termion::color;
-use crate::colors::{Palette, BG_RESET, FG_RESET, DEFAULT_PALETTE};
+use crate::colors::{Palette, BG_RESET, DEFAULT_PALETTE, FG_RESET};
 use crate::field::Field;
+use termion::color;
 
 pub struct Cursor {
     pub row: usize,
@@ -29,7 +29,8 @@ impl Minesweeper {
     }
 
     pub fn randomize_field(&mut self) {
-        self.field.randomize(self.mine_percentage, self.cursor.row, self.cursor.col);
+        self.field
+            .randomize(self.mine_percentage, self.cursor.row, self.cursor.col);
     }
 
     pub fn print_field(&self, f: &mut impl Write, palette: &Palette) {

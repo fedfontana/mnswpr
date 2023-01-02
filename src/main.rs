@@ -308,8 +308,9 @@ impl Display for Field {
 //TODO add a retry option after concluding a match
 //TODO generate board when clicking on first cell. Either generate a number or a whole area of numbers under the cursor in a way that the first tile cannot be a bomb.
 
-//TODO fix the colors not covering the whole board
-//TODO add more different colors for each bomb count
+//TODO fix bug: when flagging 10 cells and the unflagging one, the screen shows 90 (have to clear the whole line before printing the score)
+
+//TODO add 9 differrent colors for each neighbouring_bomb_count
 //TODO when a match is lost, highlight the flags in the wrong place with a different color
 fn main() {
     let mut field = Field::new(10, 10, 20);
@@ -317,10 +318,11 @@ fn main() {
     let stdin = stdin();
     let mut stdout = HideCursor::from(stdout().into_raw_mode().unwrap());
 
+    write!(stdout, "{}{}", termion::clear::All, termion::cursor::Goto(1,1));
+
     write!(
         stdout,
-        "{}{}Mines:{}    Flags:{}\r\n{field}",
-        termion::clear::All,
+        "{}Mines:{}    Flags:{}\r\n{field}",
         termion::cursor::Goto(1, 1),
         field.mine_count,
         field.flag_count
@@ -358,14 +360,14 @@ fn main() {
                             field.uncover_all();
                             write!(
                                 stdout,
-                                "{}{}Mines:{}    Flags:{}\r\n{field}",
-                                termion::clear::All,
+                                "{}Mines:{}    Flags:{}\r\n{field}",
                                 termion::cursor::Goto(1, 1),
                                 field.mine_count,
                                 field.flag_count
                             );
-                            println!(
-                                "{}You lost!{}",
+                            write!(
+                                stdout,
+                                "{}You lost!{}\r\n",
                                 color::Fg(color::LightRed),
                                 color::Fg(color::Reset)
                             );
@@ -380,8 +382,7 @@ fn main() {
         }
         write!(
             stdout,
-            "{}{}Mines:{}    Flags:{}\r\n{field}",
-            termion::clear::All,
+            "{}Mines:{}    Flags:{}\r\n{field}",
             termion::cursor::Goto(1, 1),
             field.mine_count,
             field.flag_count
@@ -389,7 +390,7 @@ fn main() {
         if field.covered_empty_cells == 0 {
             write!(
                 stdout,
-                "{}You won!{}",
+                "{}You won!{}\r\n",
                 color::Fg(color::Green),
                 color::Fg(color::Reset)
             );

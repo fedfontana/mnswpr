@@ -276,7 +276,7 @@ impl Field {
 
 impl Display for Field {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut str_repr = String::new(); //TODO use with_capacity()?
+        let mut str_repr = String::new(); //TODO use with_capacity()? / implement this in a more efficient way
 
         for row in 0..self.rows {
             for col in 0..self.cols {
@@ -294,9 +294,11 @@ impl Display for Field {
     }
 }
 
-//TODO fix the board continously going down with each subsequent move
-//TODO add mouse click support (supported by termion)
-
+//TODO split into files
+//TODO Game struct should be different from Field struct
+//TODO refactor
+//TODO add mouse click support (supported by termion)?
+//TODO add docs and tests
 //TODO add cli options:
 //  - widht
 //  - height
@@ -306,12 +308,13 @@ impl Display for Field {
 //          and the ones with the right amount of flags around them get printed green
 
 //TODO add a retry option after concluding a match
-//TODO generate board when clicking on first cell. Either generate a number or a whole area of numbers under the cursor in a way that the first tile cannot be a bomb.
+//TODO generate board when clicking on first cell. 
+//  - Either generate a number or a whole area of numbers under the cursor in a way that the first tile cannot be a bomb.
 
-//TODO fix bug: when flagging 10 cells and the unflagging one, the screen shows 90 (have to clear the whole line before printing the score)
 
-//TODO add 9 differrent colors for each neighbouring_bomb_count
+//TODO add bg color for uncovered cells (the original gray (185, 185, 185))
 //TODO when a match is lost, highlight the flags in the wrong place with a different color
+
 fn main() {
     let mut field = Field::new(10, 10, 20);
 
@@ -360,8 +363,9 @@ fn main() {
                             field.uncover_all();
                             write!(
                                 stdout,
-                                "{}Mines:{}    Flags:{}\r\n{field}",
+                                "{}{}Mines:{}    Flags:{}\r\n{field}",
                                 termion::cursor::Goto(1, 1),
+                                termion::clear::CurrentLine,
                                 field.mine_count,
                                 field.flag_count
                             );
@@ -382,8 +386,9 @@ fn main() {
         }
         write!(
             stdout,
-            "{}Mines:{}    Flags:{}\r\n{field}",
+            "{}{}Mines:{}    Flags:{}\r\n{field}",
             termion::cursor::Goto(1, 1),
+            termion::clear::CurrentLine,
             field.mine_count,
             field.flag_count
         );

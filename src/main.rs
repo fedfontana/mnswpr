@@ -17,9 +17,6 @@ mod game;
 
 use crate::game::Minesweeper;
 
-//TODO add docs and tests
-//TODO run under the strictest clippy
-
 #[derive(Clone)]
 enum SizePreset {
     Tiny,

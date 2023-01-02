@@ -29,7 +29,7 @@ impl Minesweeper {
     }
 
     pub fn randomize_field(&mut self) {
-        self.field.randomize(self.mine_percentage);
+        self.field.randomize(self.mine_percentage, self.cursor.row, self.cursor.col);
     }
 
     pub fn print_field(&self, f: &mut impl Write, palette: &Palette) {

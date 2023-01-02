@@ -50,7 +50,10 @@ impl Field {
         let mut rng = thread_rng();
         for idx in 0..self.rows * self.cols {
             let (row, col) = self.idx_to_position(idx);
-            let cell_content = if row.abs_diff(current_row) >= 1 && col.abs_diff(current_col) >= 1 && rng.gen_range(1..=100) <= mine_percentage {
+            let cell_content = if row.abs_diff(current_row) >= 1
+                && col.abs_diff(current_col) >= 1
+                && rng.gen_range(1..=100) <= mine_percentage
+            {
                 mine_count += 1;
                 cell::Content::Mine
             } else {
@@ -95,7 +98,9 @@ impl Field {
                         continue;
                     }
 
-                    match self.grid[self.position_to_idx(current_row as usize, current_col as usize)].content
+                    match self.grid
+                        [self.position_to_idx(current_row as usize, current_col as usize)]
+                    .content
                     {
                         cell::Content::Mine => count += 1,
                         cell::Content::Empty => {}
@@ -170,12 +175,17 @@ impl Field {
         }
     }
 
-    pub fn uncover_at(&mut self, row: usize, col: usize) -> cell::Content {
-        let old_content = self.get_mut(row, col).unwrap().content.clone();
+    /// Uncovers the board recursively (when meeting non-mine tiles with 0 neighbouring mines)
+    /// starting at position (row, col). Returns whether the selected cell contained an un-flagged mine
+    pub fn uncover_at(&mut self, row: usize, col: usize) -> bool {
+        let old_cell = self.get_mut(row, col).unwrap();
+
+        let exploded = matches!(old_cell.content, cell::Content::Mine)
+            && !matches!(old_cell.state, cell::State::Flagged);
 
         Self::uncover_rec(self, row as isize, col as isize);
 
-        old_content
+        exploded
     }
 
     pub fn toggle_flag_at(&mut self, row: usize, col: usize) {

@@ -18,6 +18,7 @@ The field can be customized via CLI flags:
 - `-m` or `--mine-percentage` controls the % of mines in the field
   
 If you don't want to specify the dimensions, you can use the `-p` or `--preset` flags and provide one of the provided presets:
+- `tiny`: 20x13 field
 - `small`: 30x20 field
 - `medium`: 40x25 field
 - `large`: 50x30 field

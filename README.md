@@ -28,4 +28,4 @@ Note that the sizes the field will always be constrained by the size of the term
 
 ## Screenshots
 
-![example game](imgs/Screenshot%202023-01-02%20at%2017.42.44.png)
+![example game](imgs/field.png)

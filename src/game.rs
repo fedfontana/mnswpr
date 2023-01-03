@@ -44,18 +44,9 @@ impl Minesweeper {
             for col in 0..self.cols {
                 let cell = self.field.get(row, col).unwrap();
 
-                let sep = if self.cursor.row == row && self.cursor.col == col {
-                    ('[', ']')
-                } else {
-                    (' ', ' ')
-                };
-
                 str_repr = format!(
-                    "{str_repr}{bg}{}{cell_repr}{bg}{}{BG_RESET}",
-                    sep.0,
-                    sep.1,
-                    bg = palette.bg,
-                    cell_repr = cell.to_string_with_palette(palette),
+                    "{str_repr}{cell_repr}{BG_RESET}",
+                    cell_repr = cell.to_string_with_palette(palette, self.cursor.row == row && self.cursor.col == col),
                 );
             }
             str_repr = format!("{str_repr}\r\n");
@@ -71,18 +62,10 @@ impl Minesweeper {
             for col in 0..self.cols {
                 let cell = self.field.get(row, col).unwrap();
 
-                let sep = if self.cursor.row == row && self.cursor.col == col {
-                    ('[', ']')
-                } else {
-                    (' ', ' ')
-                };
-
                 str_repr = format!(
-                    "{str_repr}{bg}{}{cell_repr}{bg}{}{BG_RESET}",
-                    sep.0,
-                    sep.1,
+                    "{str_repr}{bg}{cell_repr}{BG_RESET}",
                     bg = palette.bg,
-                    cell_repr = cell.to_string_with_palette_lost(palette),
+                    cell_repr = cell.to_string_with_palette_lost(palette, self.cursor.row == row && self.cursor.col == col),
                 );
             }
             str_repr = format!("{str_repr}\r\n");

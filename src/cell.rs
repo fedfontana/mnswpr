@@ -63,43 +63,61 @@ impl Cell {
         self.state = new_state;
     }
 
-    pub fn to_string_with_palette(&self, palette: &colors::Palette) -> String {
+    pub fn to_string_with_palette(&self, palette: &colors::Palette, with_cursor: bool) -> String {
+        let sep = if with_cursor {
+            ('[', ']')
+        } else {
+            (' ', ' ')
+        };
+
         match self.state {
             State::Open => match self.content {
                 Content::Mine => {
-                    format!("{}*{}", palette.mine_bg, BG_RESET)
+                    format!("{}{}*{}{}", palette.mine_bg, sep.0, sep.1, BG_RESET)
                 }
                 Content::Empty => format!(
-                    "{}{}{}{FG_RESET}{BG_RESET}",
-                    palette.bg,
-                    palette.neighbour_count_to_fg_color[self.neighbouring_bomb_count],
-                    if self.neighbouring_bomb_count != 0 {
+                    "{bg}{sep0}{fg}{repr}{FG_RESET}{sep1}{BG_RESET}",
+                    bg = palette.bg,
+                    sep0 = sep.0,
+                    fg = palette.neighbour_count_to_fg_color[self.neighbouring_bomb_count],
+                    sep1 = sep.1,
+                    repr = if self.neighbouring_bomb_count != 0 {
                         self.neighbouring_bomb_count.to_string()
                     } else {
                         " ".to_string()
-                    },
+                    }
                 ),
             },
-            State::Closed => ".".to_string(),
+            State::Closed => format!("{}{}.{}{}", palette.bg, sep.0, sep.1, BG_RESET),
             State::Flagged => {
-                format!("{}F{BG_RESET}", palette.flag_bg)
+                format!("{}{}F{}{BG_RESET}", palette.flag_bg, sep.0, sep.1)
             }
         }
     }
 
-    pub fn to_string_with_palette_lost(&self, palette: &colors::Palette) -> String {
+    pub fn to_string_with_palette_lost(&self, palette: &colors::Palette, with_cursor: bool) -> String {
+        let sep = if with_cursor {
+            ('[', ']')
+        } else {
+            (' ', ' ')
+        };
+
         match (self.state, self.content) {
-            (State::Flagged, Content::Mine) => format!("{}*{BG_RESET}", color::Bg(color::Green)),
+            (State::Flagged, Content::Mine) => format!("{}{}*{}{BG_RESET}", sep.0, sep.1, color::Bg(color::Green)),
             (State::Flagged, Content::Empty) => {
                 format!(
-                    "{bg}{count}{BG_RESET}",
+                    "{bg}{}{count}{}{BG_RESET}",
+                    sep.0,
+                    sep.1,
                     bg=color::Bg(color::LightRed),
                     count=self.neighbouring_bomb_count,
                 )
             }
-            (_, Content::Mine) => format!("{}*{BG_RESET}", palette.mine_bg),
+            (_, Content::Mine) => format!("{}{}*{}{BG_RESET}", palette.mine_bg, sep.0, sep.1),
             (_, Content::Empty) => format!(
-                "{bg}{fg}{count}{FG_RESET}{BG_RESET}",
+                "{bg}{}{fg}{count}{FG_RESET}{}{BG_RESET}",
+                sep.0,
+                sep.1,
                 bg = palette.bg,
                 fg = palette.neighbour_count_to_fg_color[self.neighbouring_bomb_count],
                 count = if self.neighbouring_bomb_count != 0 {

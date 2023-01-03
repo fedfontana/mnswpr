@@ -10,7 +10,7 @@ pub struct Cursor {
     pub col: usize,
 }
 
-pub struct Minesweeper {
+pub struct Mnswpr {
     pub field: Field,
     pub cursor: Cursor,
     pub rows: usize,
@@ -19,7 +19,7 @@ pub struct Minesweeper {
     palette: Palette
 }
 
-impl Minesweeper {
+impl Mnswpr {
     pub fn new(rows: usize, cols: usize, mine_percentage: u8, palette: Palette) -> Self {
         Self {
             cursor: Cursor { row: 0, col: 0 },

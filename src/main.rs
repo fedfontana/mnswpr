@@ -24,7 +24,7 @@ mod field;
 mod game;
 
 use crate::colors::{Palette, MNSWPR_PALETTE, OG_PALETTE};
-use crate::game::Minesweeper;
+use crate::game::Mnswpr;
 
 #[derive(Clone)]
 enum Theme {
@@ -176,7 +176,7 @@ fn main() {
 
     let (cols, rows) = parse_field_size(&args);
 
-    let mut game = Minesweeper::new(rows, cols, args.mine_percentage, args.theme.to_palette());
+    let mut game = Mnswpr::new(rows, cols, args.mine_percentage, args.theme.to_palette());
 
     let stdin = stdin();
     let mut stdout = HideCursor::from(stdout().into_raw_mode().unwrap());

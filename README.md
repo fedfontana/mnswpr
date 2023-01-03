@@ -1,4 +1,4 @@
-# Minesweeper
+# Mnswpr
 
 Terminal minesweeper
 

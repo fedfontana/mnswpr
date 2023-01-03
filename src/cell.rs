@@ -1,4 +1,4 @@
-use crate::colors;
+use crate::colors::{self, PaletteElement};
 use termion::color;
 
 #[derive(Copy, Clone, Debug)]
@@ -53,8 +53,7 @@ impl Cell {
         match self.state {
             State::Open => match self.content {
                 Content::Mine => {
-                    bg = palette.mine.bg;
-                    fg = palette.mine.fg;
+                    PaletteElement { bg, fg } = palette.mine;
                     repr = "*".to_string();
                 }
                 Content::Empty => {
@@ -68,13 +67,11 @@ impl Cell {
                 }
             },
             State::Closed => {
-                bg = palette.closed.bg;
-                fg = palette.closed.fg;
+                PaletteElement { bg, fg } = palette.closed; 
                 repr = ".".to_string();
             }
             State::Flagged => {
-                bg = palette.flag.bg;
-                fg = palette.flag.fg;
+                PaletteElement { bg, fg } = palette.flag;
                 repr = "F".to_string();
             }
         };
@@ -102,18 +99,15 @@ impl Cell {
 
         match (self.state, self.content) {
             (State::Flagged, Content::Mine) => {
-                bg = color::Bg(&color::Green);
-                fg = color::Fg(&color::White);
+                PaletteElement { bg, fg } = palette.correct_flag;
                 repr = "*".to_string();
             }
             (State::Flagged, Content::Empty) => {
-                bg = color::Bg(&color::LightRed);
-                fg = color::Fg(&color::White);
+                PaletteElement { bg, fg } = palette.wrong_flag;
                 repr = self.neighbouring_bomb_count.to_string();
             }
             (_, Content::Mine) => {
-                bg = palette.mine.bg;
-                fg = palette.mine.fg;
+                PaletteElement { bg, fg } = palette.mine;
                 repr = "*".to_string();
             }
             (_, Content::Empty) => {

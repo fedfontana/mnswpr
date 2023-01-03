@@ -21,6 +21,8 @@ pub struct Palette {
     pub mine: PaletteElement,
     pub flag: PaletteElement,
     pub cursor_fg: color::Fg<&'static dyn color::Color>,
+    pub correct_flag: PaletteElement,
+    pub wrong_flag: PaletteElement,
 }
 
 pub const OG_PALETTE: Palette = Palette {
@@ -40,6 +42,8 @@ pub const OG_PALETTE: Palette = Palette {
     mine: PaletteElement::new(&color::Red, &color::White),
     flag: PaletteElement::new(&color::Rgb(40, 100, 40), &color::White),
     cursor_fg: color::Fg(&color::White),
+    correct_flag: PaletteElement::new(&color::Green, &color::White),
+    wrong_flag: PaletteElement::new(&color::LightRed, &color::White),
 };
 
 pub const MNSWPR_PALETTE: Palette = Palette {
@@ -59,6 +63,8 @@ pub const MNSWPR_PALETTE: Palette = Palette {
     mine: PaletteElement::new(&color::Red, &color::White),
     flag: PaletteElement::new(&color::Rgb(40, 100, 40), &color::White),
     cursor_fg: color::Fg(&color::White),
+    correct_flag: PaletteElement::new(&color::Green, &color::White),
+    wrong_flag: PaletteElement::new(&color::LightRed, &color::White),
 };
 
 pub const BG_RESET: color::Bg<color::Reset> = color::Bg(color::Reset);

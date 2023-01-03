@@ -256,4 +256,51 @@ impl Field {
         }
         false
     }
+
+    pub fn get_non_open_nbors_amt(&self, row: usize, col: usize) -> Option<usize> {
+        if self.get(row, col).is_none() {
+            return None;
+        }
+        let mut count = 0;
+        for drow in -1..=1 {
+            for dcol in -1..=1 {
+                if drow == 0 && dcol == 0 {
+                    continue;
+                }
+                if row as isize + drow < 0 
+                    || col as isize + dcol < 0 {
+                    continue;
+                }
+                let opt_cell = self.get((row as isize  + drow) as usize, (col as isize + dcol) as usize);
+                if let Some(cell) = opt_cell {
+                    if !matches!(cell.state, cell::State::Open) {
+                        count += 1;
+                    }
+                }
+
+            }
+        }
+        Some(count)
+    }
+
+    pub fn unflag_all_closed_around(&mut self, row: usize, col: usize) {
+        for drow in -1..=1 {
+            for dcol in -1..=1 {
+                if drow == 0 && dcol == 0 {
+                    continue;
+                }
+                if row as isize + drow < 0 
+                    || col as isize + dcol < 0 {
+                    continue;
+                }
+                let opt_cell = self.get_mut((row as isize  + drow) as usize, (col as isize + dcol) as usize);
+                if let Some(cell) = opt_cell {
+                    if matches!(cell.state, cell::State::Closed) {
+                        self.toggle_flag_at((row as isize  + drow) as usize, (col as isize + dcol) as usize);
+                    }
+                }
+
+            }
+        }
+    }
 }

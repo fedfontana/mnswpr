@@ -269,6 +269,17 @@ fn main() {
                     }
                 }
                 Key::Char('f' | 'F') if !first_move && !ask_play_again => {
+                    if let Some(cell) = game.field.get(game.cursor.row, game.cursor.col) {
+                        if matches!(cell.state, cell::State::Open)
+                            && cell.neighbouring_bomb_count
+                                == game
+                                .field
+                                .get_non_open_nbors_amt(game.cursor.row, game.cursor.col)
+                                .unwrap() {
+                            game.field.unflag_all_closed_around(game.cursor.row, game.cursor.col);
+                        }
+                    }
+
                     game.field.toggle_flag_at(game.cursor.row, game.cursor.col)
                 }
                 _ => {}

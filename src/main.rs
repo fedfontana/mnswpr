@@ -1,3 +1,11 @@
+// #![warn(
+//     clippy::all,
+//     clippy::restriction,
+//     clippy::pedantic,
+//     clippy::nursery,
+//     clippy::cargo,
+// )]
+
 use std::fmt::Display;
 use std::io::{stdin, stdout, Write};
 use std::str::FromStr;
@@ -16,6 +24,45 @@ mod field;
 mod game;
 
 use crate::game::Minesweeper;
+use crate::colors::{OG_PALETTE, MNSWPR_PALETTE, Palette};
+ 
+#[derive(Clone)]
+enum Theme {
+    Mnswpr,
+    OG,
+}
+
+impl Theme {
+    fn to_palette(&self) -> Palette {
+        match self {
+            Theme::Mnswpr => MNSWPR_PALETTE,
+            Theme::OG => OG_PALETTE,
+        }
+    }
+}
+
+impl Display for Theme {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let repr = match self {
+            Theme::Mnswpr => "mnswpr",
+            Theme::OG => "og",
+        };
+        write!(f, "{repr}")
+    }
+}
+
+impl FromStr for Theme {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "mnswpr" => Ok(Self::Mnswpr),
+            "og" => Ok(Self::OG),
+            t => Err(format!("Expected one of \"mnswpr\" and \"og\", found: \"{t}\"")),
+        }
+    }
+}
+
 
 #[derive(Clone)]
 enum SizePreset {
@@ -92,6 +139,10 @@ struct Args {
     /// The size preset of the field. Note that `-c` and `-r` take precendence over the preset.
     #[arg(short, long, default_value_t=SizePreset::Tiny)]
     preset: SizePreset,
+
+    /// The theme of the board
+    #[arg(short, long, default_value_t=Theme::Mnswpr)]
+    theme: Theme,
 }
 
 /// Returns (cols, rows) after parsing the cli arguments and clipping them with the size of the terminal minus some chars for padding
@@ -121,7 +172,7 @@ fn main() {
 
     let (cols, rows) = parse_field_size(&args);
 
-    let mut game = Minesweeper::new(rows, cols, args.mine_percentage);
+    let mut game = Minesweeper::new(rows, cols, args.mine_percentage, args.theme.to_palette());
 
     let stdin = stdin();
     let mut stdout = HideCursor::from(stdout().into_raw_mode().unwrap());
@@ -141,9 +192,9 @@ fn main() {
     let mut first_move = true;
 
     for c in stdin.events() {
-        if let Event::Key(event) = c.unwrap() {
+        if let Ok(Event::Key(event)) = c {
             match event {
-                Key::Char(' ') | Key::Char('y') | Key::Char('Y') | Key::Insert
+                Key::Char(' ' | 'y' | 'Y') | Key::Insert
                     if ask_play_again =>
                 {
                     lost = false;
@@ -158,28 +209,28 @@ fn main() {
                     ).unwrap();
                     game.reset();
                 }
-                Key::Char('q') | Key::Char('Q') | Key::Char('n') | Key::Char('N')
+                Key::Char('q' | 'Q' | 'n' | 'N')
                     if ask_play_again =>
                 {
                     break
                 }
-                Key::Char('q') | Key::Char('Q') => break,
-                Key::Char('w') | Key::Char('W') | Key::Char('k') | Key::Char('K') | Key::Up if !ask_play_again => {
+                Key::Char('q' | 'Q') => break,
+                Key::Char('w' | 'W' | 'k' | 'K') | Key::Up if !ask_play_again => {
                     if game.cursor.row > 0 {
                         game.cursor.row -= 1;
                     }
                 }
-                Key::Char('a') | Key::Char('A') | Key::Char('h') | Key::Char('H') | Key::Left if !ask_play_again => {
+                Key::Char('a' | 'A' | 'h' | 'H') | Key::Left if !ask_play_again => {
                     if game.cursor.col > 0 {
                         game.cursor.col -= 1;
                     }
                 }
-                Key::Char('s') | Key::Char('S') | Key::Char('j') | Key::Char('J') | Key::Down if !ask_play_again => {
+                Key::Char('s' | 'S' | 'j' | 'J') | Key::Down if !ask_play_again => {
                     if game.cursor.row < game.rows - 1 {
                         game.cursor.row += 1;
                     }
                 }
-                Key::Char('d') | Key::Char('D') | Key::Char('l') | Key::Char('L') | Key::Right if !ask_play_again => {
+                Key::Char('d' | 'D' | 'l' | 'L') | Key::Right if !ask_play_again => {
                     if game.cursor.col < game.cols - 1 {
                         game.cursor.col += 1;
                     }
@@ -197,7 +248,7 @@ fn main() {
                         ask_play_again = true;
                     }
                 }
-                Key::Char('f') | Key::Char('F') if !first_move && !ask_play_again => {
+                Key::Char('f' | 'F') if !first_move && !ask_play_again => {
                     game.field.toggle_flag_at(game.cursor.row, game.cursor.col)
                 }
                 _ => {}

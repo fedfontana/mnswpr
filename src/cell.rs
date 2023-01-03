@@ -1,4 +1,4 @@
-use crate::colors::{self, BG_RESET, FG_RESET};
+use crate::colors::{self, PaletteElement};
 use termion::color;
 
 #[derive(Copy, Clone, Debug)]
@@ -33,81 +33,98 @@ pub struct Cell {
     pub neighbouring_bomb_count: usize,
 }
 
-// impl Display for Cell {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         match self.state {
-//             CellState::Open => match self.content {
-//                 CellContent::Mine => {
-//                     write!(f, "{}*{}", color::Bg(color::Red), color::Bg(color::Reset))
-//                 }
-//                 CellContent::Empty => write!(
-//                     f,
-//                     "{}{}{}{}{}",
-//                     BG_COLOR,
-//                     NBOR_COUNT_TO_FG_COLOR[self.neighbouring_bomb_count],
-//                     if self.neighbouring_bomb_count != 0 { self.neighbouring_bomb_count.to_string() } else { " ".to_string() },
-//                     color::Fg(color::Reset),
-//                     color::Bg(color::Reset)
-//                 ),
-//             },
-//             CellState::Closed => write!(f, "."),
-//             CellState::Flagged => {
-//                 write!(f, "{}F{}", color::Bg(color::Blue), color::Bg(color::Reset))
-//             }
-//         }
-//     }
-// }
-
 impl Cell {
     pub fn set_state(&mut self, new_state: State) {
         self.state = new_state;
     }
 
-    pub fn to_string_with_palette(&self, palette: &colors::Palette) -> String {
+    /// This method does not reset the fg/bg color!!
+    pub fn to_string_with_palette(&self, palette: &colors::Palette, with_cursor: bool) -> String {
+        let sep = if with_cursor { ('[', ']') } else { (' ', ' ') };
+        let cursor = (
+            format!("{}{}", palette.cursor_fg, sep.0),
+            format!("{}{}", palette.cursor_fg, sep.1),
+        );
+
+        let bg;
+        let fg;
+        let repr;
+
         match self.state {
             State::Open => match self.content {
                 Content::Mine => {
-                    format!("{}*{}", palette.mine_bg, BG_RESET)
+                    PaletteElement { bg, fg } = palette.mine;
+                    repr = "*".to_string();
                 }
-                Content::Empty => format!(
-                    "{}{}{}{FG_RESET}{BG_RESET}",
-                    palette.bg,
-                    palette.neighbour_count_to_fg_color[self.neighbouring_bomb_count],
-                    if self.neighbouring_bomb_count != 0 {
+                Content::Empty => {
+                    bg = palette.open_bg;
+                    fg = palette.neighbour_count_to_fg_color[self.neighbouring_bomb_count];
+                    repr = if self.neighbouring_bomb_count != 0 {
                         self.neighbouring_bomb_count.to_string()
                     } else {
                         " ".to_string()
-                    },
-                ),
+                    };
+                }
             },
-            State::Closed => ".".to_string(),
-            State::Flagged => {
-                format!("{}F{BG_RESET}", palette.flag_bg)
+            State::Closed => {
+                PaletteElement { bg, fg } = palette.closed; 
+                repr = ".".to_string();
             }
-        }
+            State::Flagged => {
+                PaletteElement { bg, fg } = palette.flag;
+                repr = "F".to_string();
+            }
+        };
+        format!(
+            "{bg}{cursor0}{fg}{repr}{cursor1}",
+            cursor0 = cursor.0,
+            cursor1 = cursor.1,
+        )
     }
 
-    pub fn to_string_with_palette_lost(&self, palette: &colors::Palette) -> String {
+    pub fn to_string_with_palette_lost(
+        &self,
+        palette: &colors::Palette,
+        with_cursor: bool,
+    ) -> String {
+        let sep = if with_cursor { ('[', ']') } else { (' ', ' ') };
+        let cursor = (
+            format!("{}{}", palette.cursor_fg, sep.0),
+            format!("{}{}", palette.cursor_fg, sep.1),
+        );
+
+        let bg: color::Bg<&'static dyn color::Color>;
+        let fg: color::Fg<&'static dyn color::Color>;
+        let repr;
+
         match (self.state, self.content) {
-            (State::Flagged, Content::Mine) => format!("{}*{BG_RESET}", color::Bg(color::Green)),
-            (State::Flagged, Content::Empty) => {
-                format!(
-                    "{bg}{count}{BG_RESET}",
-                    bg=color::Bg(color::LightRed),
-                    count=self.neighbouring_bomb_count,
-                )
+            (State::Flagged, Content::Mine) => {
+                PaletteElement { bg, fg } = palette.correct_flag;
+                repr = "*".to_string();
             }
-            (_, Content::Mine) => format!("{}*{BG_RESET}", palette.mine_bg),
-            (_, Content::Empty) => format!(
-                "{bg}{fg}{count}{FG_RESET}{BG_RESET}",
-                bg = palette.bg,
-                fg = palette.neighbour_count_to_fg_color[self.neighbouring_bomb_count],
-                count = if self.neighbouring_bomb_count != 0 {
+            (State::Flagged, Content::Empty) => {
+                PaletteElement { bg, fg } = palette.wrong_flag;
+                repr = self.neighbouring_bomb_count.to_string();
+            }
+            (_, Content::Mine) => {
+                PaletteElement { bg, fg } = palette.mine;
+                repr = "*".to_string();
+            }
+            (_, Content::Empty) => {
+                bg = palette.open_bg;
+                fg = palette.neighbour_count_to_fg_color[self.neighbouring_bomb_count];
+                repr = if self.neighbouring_bomb_count != 0 {
                     self.neighbouring_bomb_count.to_string()
                 } else {
                     " ".to_string()
-                },
-            ),
-        }
+                };
+            }
+        };
+
+        format!(
+            "{bg}{cursor0}{fg}{repr}{cursor1}",
+            cursor0 = cursor.0,
+            cursor1 = cursor.1,
+        )
     }
 }

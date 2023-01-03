@@ -147,6 +147,12 @@ struct Args {
     /// The theme of the board
     #[arg(short, long, default_value_t=Theme::Mnswpr)]
     theme: Theme,
+
+    #[arg(long, default_value_t=false)]
+    assisted_flagging: bool,
+ 
+    #[arg(long, default_value_t=false)]
+    assisted_opening: bool,
 }
 
 /// Returns (cols, rows) after parsing the cli arguments and clipping them with the size of the terminal minus some chars for padding
@@ -242,7 +248,8 @@ fn main() {
                     }
 
                     if let Some(cell) = game.field.get(game.cursor.row, game.cursor.col) {
-                        if matches!(cell.state, cell::State::Open)
+                        if  args.assisted_opening &&
+                            matches!(cell.state, cell::State::Open)
                             && game
                                 .field
                                 .get_flagged_nbors_amt(game.cursor.row, game.cursor.col)
@@ -269,14 +276,16 @@ fn main() {
                     }
                 }
                 Key::Char('f' | 'F') if !first_move && !ask_play_again => {
-                    if let Some(cell) = game.field.get(game.cursor.row, game.cursor.col) {
-                        if matches!(cell.state, cell::State::Open)
+                    if args.assisted_flagging {
+                        if let Some(cell) = game.field.get(game.cursor.row, game.cursor.col) {
+                            if matches!(cell.state, cell::State::Open)
                             && cell.neighbouring_bomb_count
-                                == game
-                                .field
-                                .get_non_open_nbors_amt(game.cursor.row, game.cursor.col)
-                                .unwrap() {
-                            game.field.unflag_all_closed_around(game.cursor.row, game.cursor.col);
+                            == game
+                            .field
+                            .get_non_open_nbors_amt(game.cursor.row, game.cursor.col)
+                            .unwrap() {
+                                game.field.unflag_all_closed_around(game.cursor.row, game.cursor.col);
+                            }
                         }
                     }
 

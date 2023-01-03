@@ -103,7 +103,7 @@ impl Cell {
         };
 
         match (self.state, self.content) {
-            (State::Flagged, Content::Mine) => format!("{}{}*{}{BG_RESET}", sep.0, sep.1, color::Bg(color::Green)),
+            (State::Flagged, Content::Mine) => format!("{}{}*{}{BG_RESET}", color::Bg(color::Green), sep.0, sep.1, ),
             (State::Flagged, Content::Empty) => {
                 format!(
                     "{bg}{}{count}{}{BG_RESET}",

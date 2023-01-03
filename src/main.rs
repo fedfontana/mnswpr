@@ -148,9 +148,13 @@ struct Args {
     #[arg(short, long, default_value_t=Theme::Mnswpr)]
     theme: Theme,
 
+    /// If active, trying to flag an open cell with N neighboring mines and N non-open adjacent cells will result in 
+    /// all of those cells getting flagged
     #[arg(long, default_value_t=false)]
     assisted_flagging: bool,
  
+    /// If active, trying to open an open cell with N neighboring mines and N flagged adjacent cells will result in all
+    /// of those cells getting opened
     #[arg(long, default_value_t=false)]
     assisted_opening: bool,
 }

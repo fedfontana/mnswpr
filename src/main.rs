@@ -23,9 +23,9 @@ mod colors;
 mod field;
 mod game;
 
+use crate::colors::{Palette, MNSWPR_PALETTE, OG_PALETTE};
 use crate::game::Minesweeper;
-use crate::colors::{OG_PALETTE, MNSWPR_PALETTE, Palette};
- 
+
 #[derive(Clone)]
 enum Theme {
     Mnswpr,
@@ -58,11 +58,12 @@ impl FromStr for Theme {
         match s.to_lowercase().as_str() {
             "mnswpr" => Ok(Self::Mnswpr),
             "og" => Ok(Self::OG),
-            t => Err(format!("Expected one of \"mnswpr\" and \"og\", found: \"{t}\"")),
+            t => Err(format!(
+                "Expected one of \"mnswpr\" and \"og\", found: \"{t}\""
+            )),
         }
     }
 }
-
 
 #[derive(Clone)]
 enum SizePreset {
@@ -121,6 +122,9 @@ impl FromStr for SizePreset {
 /// Move the cursor with either wasd, hjkl or the arrows.
 ///
 /// Flag/unflag the cell under the cursor by pressing f, or uncover it by pressing <space> or <insert>.
+/// 
+/// Additionally, if you think you have flagged all the mines around a cell, you can press <space> or <enter> on it to open all
+/// of the closed cells around it. Note that this will try to open cells that contain mines!
 #[derive(Parser)]
 #[command(author, version, about)]
 struct Args {
@@ -182,7 +186,8 @@ fn main() {
         "{}{}",
         termion::clear::All,
         termion::cursor::Goto(1, 1)
-    ).unwrap();
+    )
+    .unwrap();
 
     game.print_game_state(&mut stdout);
     stdout.flush().unwrap();
@@ -194,9 +199,7 @@ fn main() {
     for c in stdin.events() {
         if let Ok(Event::Key(event)) = c {
             match event {
-                Key::Char(' ' | 'y' | 'Y') | Key::Insert
-                    if ask_play_again =>
-                {
+                Key::Char(' ' | 'y' | 'Y' | '\n') if ask_play_again => {
                     lost = false;
                     ask_play_again = false;
                     first_move = true;
@@ -206,14 +209,11 @@ fn main() {
                         "{}{}",
                         termion::clear::All,
                         termion::cursor::Goto(1, 1)
-                    ).unwrap();
+                    )
+                    .unwrap();
                     game.reset();
                 }
-                Key::Char('q' | 'Q' | 'n' | 'N')
-                    if ask_play_again =>
-                {
-                    break
-                }
+                Key::Char('q' | 'Q' | 'n' | 'N') if ask_play_again => break,
                 Key::Char('q' | 'Q') => break,
                 Key::Char('w' | 'W' | 'k' | 'K') | Key::Up if !ask_play_again => {
                     if game.cursor.row > 0 {
@@ -235,17 +235,37 @@ fn main() {
                         game.cursor.col += 1;
                     }
                 }
-                Key::Char(' ') | Key::Insert if !ask_play_again => {
+                Key::Char(' ' | '\n') if !ask_play_again => {
                     if first_move {
                         game.randomize_field();
                         first_move = false;
                     }
 
-                    if game.field.uncover_at(game.cursor.row, game.cursor.col) {
-                        game.lose_screen(&mut stdout);
-                        write!(stdout, "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n").unwrap();
-                        lost = true;
-                        ask_play_again = true;
+                    if let Some(cell) = game.field.get(game.cursor.row, game.cursor.col) {
+                        if matches!(cell.state, cell::State::Open)
+                            && game
+                                .field
+                                .get_flagged_nbors_amt(game.cursor.row, game.cursor.col)
+                                .unwrap()
+                                == cell.neighbouring_bomb_count
+                        {
+                            if game
+                                .field
+                                .uncover_around_cell_at(game.cursor.row, game.cursor.col)
+                            {
+                                game.lose_screen(&mut stdout);
+                                write!(stdout, "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n").unwrap();
+                                lost = true;
+                                ask_play_again = true;
+                            }
+                        } else {
+                            if game.field.uncover_at(game.cursor.row, game.cursor.col) {
+                                game.lose_screen(&mut stdout);
+                                write!(stdout, "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n").unwrap();
+                                lost = true;
+                                ask_play_again = true;
+                            }
+                        }
                     }
                 }
                 Key::Char('f' | 'F') if !first_move && !ask_play_again => {
@@ -262,12 +282,14 @@ fn main() {
                     "{}You won!{}\r\n",
                     color::Fg(color::Green),
                     color::Fg(color::Reset)
-                ).unwrap();
+                )
+                .unwrap();
                 stdout.flush().unwrap();
                 write!(
                     stdout,
                     "Do you want to play again? Press y/Y/<space>/<insert> if yes, n/N if no\r\n"
-                ).unwrap();
+                )
+                .unwrap();
                 ask_play_again = true;
             }
         }

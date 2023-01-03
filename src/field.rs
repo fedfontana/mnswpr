@@ -181,9 +181,13 @@ impl Field {
         let exploded = matches!(old_cell.content, cell::Content::Mine)
             && !matches!(old_cell.state, cell::State::Flagged);
 
+        if exploded {
+            return true;
+        }
+
         Self::uncover_rec(self, row as isize, col as isize);
 
-        exploded
+        false
     }
 
     pub fn toggle_flag_at(&mut self, row: usize, col: usize) {
@@ -202,5 +206,54 @@ impl Field {
                 self.flag_count -= 1;
             }
         };
+    }
+
+    pub fn get_flagged_nbors_amt(&self, row: usize, col: usize) -> Option<usize> {
+        if self.get(row, col).is_none() {
+            return None;
+        }
+        let mut count = 0;
+        for drow in -1..=1 {
+            for dcol in -1..=1 {
+                if drow == 0 && dcol == 0 {
+                    continue;
+                }
+                if row as isize + drow < 0 
+                    || col as isize + dcol < 0 {
+                    continue;
+                }
+                let opt_cell = self.get((row as isize  + drow) as usize, (col as isize + dcol) as usize);
+                if let Some(cell) = opt_cell {
+                    if matches!(cell.state, cell::State::Flagged) {
+                        count += 1;
+                    }
+                }
+
+            }
+        }
+        Some(count)
+    }
+
+    pub fn uncover_around_cell_at(&mut self, row: usize, col: usize) -> bool {
+        for drow in -1..=1 {
+            for dcol in -1..=1 {
+                if drow == 0 && dcol == 0 {
+                    continue;
+                }
+                if row as isize + drow < 0 
+                    || col as isize + dcol < 0 {
+                    continue;
+                }
+                let opt_cell = self.get((row as isize  + drow) as usize, (col as isize + dcol) as usize);
+                if let Some(cell) = opt_cell {
+                    if matches!(cell.state, cell::State::Closed) {
+                        if self.uncover_at((row as isize + drow) as usize, (col as isize + dcol) as usize) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        false
     }
 }

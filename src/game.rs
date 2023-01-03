@@ -1,8 +1,9 @@
 use std::io::Write;
 
-use crate::colors::{Palette, BG_RESET, FG_RESET, MNSWPR_PALETTE};
-use crate::field::Field;
 use termion::color;
+
+use crate::colors::{Palette, BG_RESET, FG_RESET};
+use crate::field::Field;
 
 pub struct Cursor {
     pub row: usize,
@@ -15,16 +16,18 @@ pub struct Minesweeper {
     pub rows: usize,
     pub cols: usize,
     mine_percentage: u8,
+    palette: Palette
 }
 
 impl Minesweeper {
-    pub fn new(rows: usize, cols: usize, mine_percentage: u8) -> Self {
+    pub fn new(rows: usize, cols: usize, mine_percentage: u8, palette: Palette) -> Self {
         Self {
             cursor: Cursor { row: 0, col: 0 },
             field: Field::new(rows, cols),
             rows,
             cols,
             mine_percentage,
+            palette,
         }
     }
 
@@ -37,7 +40,7 @@ impl Minesweeper {
             .randomize(self.mine_percentage, self.cursor.row, self.cursor.col);
     }
 
-    pub fn print_field(&self, f: &mut impl Write, palette: &Palette) {
+    pub fn print_field(&self, f: &mut impl Write) {
         let mut str_repr = String::with_capacity(self.rows * self.cols * 3 * 2);
 
         for row in 0..self.rows {
@@ -45,7 +48,7 @@ impl Minesweeper {
                 let cell = self.field.get(row, col).unwrap();
 
                 let cell_repr = cell.to_string_with_palette(
-                    palette,
+                    &self.palette,
                     self.cursor.row == row && self.cursor.col == col,
                 );
                 str_repr.push_str(&cell_repr);
@@ -56,7 +59,7 @@ impl Minesweeper {
         write!(f, "{str_repr}").unwrap();
     }
 
-    pub fn print_field_game_lost(&self, f: &mut impl Write, palette: &Palette) {
+    pub fn print_field_game_lost(&self, f: &mut impl Write) {
         let mut str_repr = String::with_capacity(self.rows * self.cols * 3 * 2);
 
         for row in 0..self.rows {
@@ -64,7 +67,7 @@ impl Minesweeper {
                 let cell = self.field.get(row, col).unwrap();
 
                 let cell_repr = cell.to_string_with_palette_lost(
-                    palette,
+                    &self.palette,
                     self.cursor.row == row && self.cursor.col == col,
                 );
                 str_repr.push_str(&cell_repr);
@@ -85,7 +88,7 @@ impl Minesweeper {
             self.field.flag_count
         )
         .unwrap();
-        self.print_field(f, &MNSWPR_PALETTE);
+        self.print_field(f);
         f.flush().unwrap();
     }
 
@@ -98,7 +101,7 @@ impl Minesweeper {
             self.field.flag_count
         )
         .unwrap();
-        self.print_field_game_lost(f, &MNSWPR_PALETTE);
+        self.print_field_game_lost(f);
         write!(
             f,
             "{}You lost!{}\r\n",

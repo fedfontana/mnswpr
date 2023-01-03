@@ -24,6 +24,45 @@ mod field;
 mod game;
 
 use crate::game::Minesweeper;
+use crate::colors::{OG_PALETTE, MNSWPR_PALETTE, Palette};
+ 
+#[derive(Clone)]
+enum Theme {
+    Mnswpr,
+    OG,
+}
+
+impl Theme {
+    fn to_palette(&self) -> Palette {
+        match self {
+            Theme::Mnswpr => MNSWPR_PALETTE,
+            Theme::OG => OG_PALETTE,
+        }
+    }
+}
+
+impl Display for Theme {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let repr = match self {
+            Theme::Mnswpr => "mnswpr",
+            Theme::OG => "og",
+        };
+        write!(f, "{repr}")
+    }
+}
+
+impl FromStr for Theme {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "mnswpr" => Ok(Self::Mnswpr),
+            "og" => Ok(Self::OG),
+            t => Err(format!("Expected one of \"mnswpr\" and \"og\", found: \"{t}\"")),
+        }
+    }
+}
+
 
 #[derive(Clone)]
 enum SizePreset {
@@ -100,6 +139,10 @@ struct Args {
     /// The size preset of the field. Note that `-c` and `-r` take precendence over the preset.
     #[arg(short, long, default_value_t=SizePreset::Tiny)]
     preset: SizePreset,
+
+    /// The theme of the board
+    #[arg(short, long, default_value_t=Theme::Mnswpr)]
+    theme: Theme,
 }
 
 /// Returns (cols, rows) after parsing the cli arguments and clipping them with the size of the terminal minus some chars for padding
@@ -129,7 +172,7 @@ fn main() {
 
     let (cols, rows) = parse_field_size(&args);
 
-    let mut game = Minesweeper::new(rows, cols, args.mine_percentage);
+    let mut game = Minesweeper::new(rows, cols, args.mine_percentage, args.theme.to_palette());
 
     let stdin = stdin();
     let mut stdout = HideCursor::from(stdout().into_raw_mode().unwrap());

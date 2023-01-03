@@ -2,29 +2,51 @@
 
 Terminal minesweeper
 
-## Controls
+```
+A simple minesweeper game for the terminal.
 
-You can move the cursor (`[...]`) by using arrows, `wasd` or `hjkl`. 
+Move the cursor with either wasd, hjkl or the arrows.
+Flag/unflag the cell under the cursor by pressing f, or uncover it by pressing <space> or <insert>.
+Additionally, if you think you have flagged all the mines around a cell, you can press <space> or <enter> 
+on it to open all of the closed cells around it. 
+Note that this will try to open cells that contain mines!
 
-Uncover the cell under the cursor by pressing `<space>` or `<insert>`, or flag (or un-flag it) by pressing `f`.
+Usage: mnswpr [OPTIONS]
 
-Press `q` at any moment to quit.
+Options:
+  -c, --columns <COLS>
+          The number of columns of the field. Must be greater than 1
 
-**Note**: controls are case-insensitive
+  -r, --rows <ROWS>
+          The number of rows of the field. Must be greater than 1
 
-## CLI options
+  -m, --mine-percentage <MINE_PERCENTAGE>
+          The percentage of mines in the field. Must be in the range (1, 100)
+          [default: 20]
 
-The field can be customized via CLI flags:
-- `-c` or `--columns` controls the numer of columns of the field
-- `-r` or `--rows` controls the number of rows of the field
-- `-m` or `--mine-percentage` controls the % of mines in the field
-  
+  -p, --preset <PRESET>
+          The size preset of the field. Note that `-c` and `-r` take precendence over the preset
+          [default: tiny]
+
+  -t, --theme <THEME>
+          The theme of the board
+          [default: mnswpr]
+
+  -h, --help
+          Print help information (use `-h` for a summary)
+
+  -V, --version
+          Print version information
+```
+
 If you don't want to specify the dimensions, you can use the `-p` or `--preset` flags and provide one of the provided presets:
 - `tiny`: 20x13 field
 - `small`: 30x20 field
 - `medium`: 40x25 field
 - `large`: 50x30 field
 - `huge`: 60x40 field
+
+**Note**: controls are case-insensitive
 
 **Note** that the sizes the field will always be constrained by the size of the terminal. As such, width and height will be clamped between 1 and you terminal's width/height minus some padding
 

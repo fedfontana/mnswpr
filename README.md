@@ -7,9 +7,6 @@ A simple minesweeper game for the terminal.
 
 Move the cursor with either wasd, hjkl or the arrows.
 Flag/unflag the cell under the cursor by pressing f, or uncover it by pressing <space> or <insert>.
-Additionally, if you think you have flagged all the mines around a cell, you can press <space> or <enter> 
-on it to open all of the closed cells around it. 
-Note that this will try to open cells that contain mines!
 
 Usage: mnswpr [OPTIONS]
 
@@ -31,6 +28,12 @@ Options:
   -t, --theme <THEME>
           The theme of the board
           [default: mnswpr]
+
+      --assisted-flagging
+          If active, trying to flag an open cell with N neighboring mines and N non-open adjacent cells will result in all of those cells getting flagged
+
+      --assisted-opening
+          If active, trying to open an open cell with N neighboring mines and N flagged adjacent cells will result in all of those cells getting opened
 
   -h, --help
           Print help information (use `-h` for a summary)

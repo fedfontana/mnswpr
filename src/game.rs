@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::colors::{Palette, BG_RESET, DEFAULT_PALETTE};
+use crate::colors::{Palette, BG_RESET, FG_RESET, MNSWPR_PALETTE};
 use crate::field::Field;
 use termion::color;
 
@@ -44,12 +44,13 @@ impl Minesweeper {
             for col in 0..self.cols {
                 let cell = self.field.get(row, col).unwrap();
 
-                str_repr = format!(
-                    "{str_repr}{cell_repr}{BG_RESET}",
-                    cell_repr = cell.to_string_with_palette(palette, self.cursor.row == row && self.cursor.col == col),
+                let cell_repr = cell.to_string_with_palette(
+                    palette,
+                    self.cursor.row == row && self.cursor.col == col,
                 );
+                str_repr.push_str(&cell_repr);
             }
-            str_repr = format!("{str_repr}\r\n");
+            str_repr = format!("{str_repr}{FG_RESET}{BG_RESET}\r\n");
         }
 
         write!(f, "{str_repr}").unwrap();
@@ -62,13 +63,13 @@ impl Minesweeper {
             for col in 0..self.cols {
                 let cell = self.field.get(row, col).unwrap();
 
-                str_repr = format!(
-                    "{str_repr}{bg}{cell_repr}{BG_RESET}",
-                    bg = palette.bg,
-                    cell_repr = cell.to_string_with_palette_lost(palette, self.cursor.row == row && self.cursor.col == col),
+                let cell_repr = cell.to_string_with_palette_lost(
+                    palette,
+                    self.cursor.row == row && self.cursor.col == col,
                 );
+                str_repr.push_str(&cell_repr);
             }
-            str_repr = format!("{str_repr}\r\n");
+            str_repr = format!("{str_repr}{BG_RESET}{FG_RESET}\r\n");
         }
 
         write!(f, "{str_repr}").unwrap();
@@ -82,8 +83,9 @@ impl Minesweeper {
             termion::cursor::Goto(1, 1),
             self.field.mine_count,
             self.field.flag_count
-        ).unwrap();
-        self.print_field(f, &DEFAULT_PALETTE);
+        )
+        .unwrap();
+        self.print_field(f, &MNSWPR_PALETTE);
         f.flush().unwrap();
     }
 
@@ -94,14 +96,16 @@ impl Minesweeper {
             termion::cursor::Goto(1, 1),
             self.field.mine_count,
             self.field.flag_count
-        ).unwrap();
-        self.print_field_game_lost(f, &DEFAULT_PALETTE);
+        )
+        .unwrap();
+        self.print_field_game_lost(f, &MNSWPR_PALETTE);
         write!(
             f,
             "{}You lost!{}\r\n",
             color::Fg(color::LightRed),
             color::Fg(color::Reset)
-        ).unwrap();
+        )
+        .unwrap();
         f.flush().unwrap();
     }
 }

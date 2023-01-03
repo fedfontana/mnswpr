@@ -1,10 +1,10 @@
-#![warn(
-    clippy::all,
-    clippy::restriction,
-    clippy::pedantic,
-    clippy::nursery,
-    clippy::cargo,
-)]
+// #![warn(
+//     clippy::all,
+//     clippy::restriction,
+//     clippy::pedantic,
+//     clippy::nursery,
+//     clippy::cargo,
+// )]
 
 use std::fmt::Display;
 use std::io::{stdin, stdout, Write};
@@ -149,9 +149,9 @@ fn main() {
     let mut first_move = true;
 
     for c in stdin.events() {
-        if let Event::Key(event) = c.unwrap() {
+        if let Ok(Event::Key(event)) = c {
             match event {
-                Key::Char(' ') | Key::Char('y') | Key::Char('Y') | Key::Insert
+                Key::Char(' ' | 'y' | 'Y') | Key::Insert
                     if ask_play_again =>
                 {
                     lost = false;
@@ -166,28 +166,28 @@ fn main() {
                     ).unwrap();
                     game.reset();
                 }
-                Key::Char('q') | Key::Char('Q') | Key::Char('n') | Key::Char('N')
+                Key::Char('q' | 'Q' | 'n' | 'N')
                     if ask_play_again =>
                 {
                     break
                 }
-                Key::Char('q') | Key::Char('Q') => break,
-                Key::Char('w') | Key::Char('W') | Key::Char('k') | Key::Char('K') | Key::Up if !ask_play_again => {
+                Key::Char('q' | 'Q') => break,
+                Key::Char('w' | 'W' | 'k' | 'K') | Key::Up if !ask_play_again => {
                     if game.cursor.row > 0 {
                         game.cursor.row -= 1;
                     }
                 }
-                Key::Char('a') | Key::Char('A') | Key::Char('h') | Key::Char('H') | Key::Left if !ask_play_again => {
+                Key::Char('a' | 'A' | 'h' | 'H') | Key::Left if !ask_play_again => {
                     if game.cursor.col > 0 {
                         game.cursor.col -= 1;
                     }
                 }
-                Key::Char('s') | Key::Char('S') | Key::Char('j') | Key::Char('J') | Key::Down if !ask_play_again => {
+                Key::Char('s' | 'S' | 'j' | 'J') | Key::Down if !ask_play_again => {
                     if game.cursor.row < game.rows - 1 {
                         game.cursor.row += 1;
                     }
                 }
-                Key::Char('d') | Key::Char('D') | Key::Char('l') | Key::Char('L') | Key::Right if !ask_play_again => {
+                Key::Char('d' | 'D' | 'l' | 'L') | Key::Right if !ask_play_again => {
                     if game.cursor.col < game.cols - 1 {
                         game.cursor.col += 1;
                     }
@@ -205,7 +205,7 @@ fn main() {
                         ask_play_again = true;
                     }
                 }
-                Key::Char('f') | Key::Char('F') if !first_move && !ask_play_again => {
+                Key::Char('f' | 'F') if !first_move && !ask_play_again => {
                     game.field.toggle_flag_at(game.cursor.row, game.cursor.col)
                 }
                 _ => {}

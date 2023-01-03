@@ -30,4 +30,5 @@ If you don't want to specify the dimensions, you can use the `-p` or `--preset` 
 
 ## Screenshots
 
-![example end game screen](imgs/field.png)
+![example game screen](imgs/og_theme.png)
+![example end game screen](imgs/mnswpr_theme.png)

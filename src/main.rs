@@ -6,121 +6,36 @@
 //     clippy::cargo,
 // )]
 
-use std::fmt::Display;
 use std::io::{stdin, stdout, Write};
-use std::str::FromStr;
 
 use clap::{command, Parser};
 
-use termion::color;
-use termion::cursor::HideCursor;
+use anyhow::{Context, Result};
+
+use colors::FG_RESET;
 use termion::event::{Event, Key};
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
+use termion::{color, cursor::HideCursor};
 
 mod cell;
 mod colors;
+mod config;
 mod field;
-mod game;
+mod mnswpr;
 
-use crate::game::Minesweeper;
-use crate::colors::{OG_PALETTE, MNSWPR_PALETTE, Palette};
- 
-#[derive(Clone)]
-enum Theme {
-    Mnswpr,
-    OG,
-}
+use crate::mnswpr::Mnswpr;
 
-impl Theme {
-    fn to_palette(&self) -> Palette {
-        match self {
-            Theme::Mnswpr => MNSWPR_PALETTE,
-            Theme::OG => OG_PALETTE,
-        }
-    }
-}
-
-impl Display for Theme {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let repr = match self {
-            Theme::Mnswpr => "mnswpr",
-            Theme::OG => "og",
-        };
-        write!(f, "{repr}")
-    }
-}
-
-impl FromStr for Theme {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "mnswpr" => Ok(Self::Mnswpr),
-            "og" => Ok(Self::OG),
-            t => Err(format!("Expected one of \"mnswpr\" and \"og\", found: \"{t}\"")),
-        }
-    }
-}
-
-
-#[derive(Clone)]
-enum SizePreset {
-    Tiny,
-    Small,
-    Medium,
-    Large,
-    Huge,
-}
-
-impl SizePreset {
-    /// Returns the pair (columns, rows) corresponding the preset
-    fn to_size(&self) -> (u64, u64) {
-        match self {
-            SizePreset::Tiny => (20, 13),
-            SizePreset::Small => (30, 20),
-            SizePreset::Medium => (40, 25),
-            SizePreset::Large => (50, 30),
-            SizePreset::Huge => (60, 40),
-        }
-    }
-}
-
-impl Display for SizePreset {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let name = match self {
-            SizePreset::Tiny => "tiny",
-            SizePreset::Small => "small",
-            SizePreset::Medium => "medium",
-            SizePreset::Large => "large",
-            SizePreset::Huge => "huge",
-        };
-        write!(f, "{name}")
-    }
-}
-
-impl FromStr for SizePreset {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "tiny" => Ok(SizePreset::Tiny),
-            "small" => Ok(SizePreset::Small),
-            "medium" => Ok(SizePreset::Medium),
-            "large" => Ok(SizePreset::Large),
-            "huge" => Ok(SizePreset::Huge),
-            v => Err(format!(
-                "Expected one of \"tiny\", \"small\", \"medium\", \"large\", \"huge\". Got \"{v}\""
-            )),
-        }
-    }
-}
+use config::{SizePreset, Theme};
 
 /// A simple minesweeper game for the terminal.
 ///
 /// Move the cursor with either wasd, hjkl or the arrows.
 ///
 /// Flag/unflag the cell under the cursor by pressing f, or uncover it by pressing <space> or <insert>.
+///
+/// Additionally, if you think you have flagged all the mines around a cell, you can press <space> or <enter> on it to open all
+/// of the closed cells around it. Note that this will try to open cells that contain mines!
 #[derive(Parser)]
 #[command(author, version, about)]
 struct Args {
@@ -143,11 +58,21 @@ struct Args {
     /// The theme of the board
     #[arg(short, long, default_value_t=Theme::Mnswpr)]
     theme: Theme,
+
+    /// If active, trying to flag an open cell with N neighboring mines and N non-open adjacent cells will result in
+    /// all of those cells getting flagged
+    #[arg(long, default_value_t = false)]
+    assisted_flagging: bool,
+
+    /// If active, trying to open an open cell with N neighboring mines and N flagged adjacent cells will result in all
+    /// of those cells getting opened
+    #[arg(long, default_value_t = false)]
+    assisted_opening: bool,
 }
 
 /// Returns (cols, rows) after parsing the cli arguments and clipping them with the size of the terminal minus some chars for padding
-fn parse_field_size(args: &Args) -> (usize, usize) {
-    let termsize = termion::terminal_size().unwrap();
+fn parse_field_size(args: &Args) -> Result<(usize, usize)> {
+    let termsize = termion::terminal_size()?;
 
     let cols = if args.cols.is_some() {
         args.cols.unwrap()
@@ -164,113 +89,65 @@ fn parse_field_size(args: &Args) -> (usize, usize) {
     };
     let rows = rows.min(termsize.1 as u64 - 4) as usize;
 
-    (cols, rows)
+    Ok((cols, rows))
 }
 
-fn main() {
+fn main() -> Result<()> {
     let args = Args::parse();
 
-    let (cols, rows) = parse_field_size(&args);
+    let (cols, rows) = parse_field_size(&args).context("Could not get the size of the terminal")?;
 
-    let mut game = Minesweeper::new(rows, cols, args.mine_percentage, args.theme.to_palette());
+    let mut mnswpr = Mnswpr::new(rows, cols, args.mine_percentage, args.theme.to_palette()?);
 
-    let stdin = stdin();
-    let mut stdout = HideCursor::from(stdout().into_raw_mode().unwrap());
+    let mut stdout = HideCursor::from(stdout().into_raw_mode()?);
 
-    write!(
-        stdout,
-        "{}{}",
-        termion::clear::All,
-        termion::cursor::Goto(1, 1)
-    ).unwrap();
+    loop {
+        write!(
+            stdout,
+            "{}{}",
+            termion::clear::All,
+            termion::cursor::Goto(1, 1)
+        )?;
+        mnswpr.reset();
 
-    game.print_game_state(&mut stdout);
-    stdout.flush().unwrap();
+        let user_did_win = mnswpr.play(&mut stdout, args.assisted_opening, args.assisted_flagging)?;
 
-    let mut lost = false;
-    let mut ask_play_again = false;
-    let mut first_move = true;
-
-    for c in stdin.events() {
-        if let Ok(Event::Key(event)) = c {
-            match event {
-                Key::Char(' ' | 'y' | 'Y') | Key::Insert
-                    if ask_play_again =>
-                {
-                    lost = false;
-                    ask_play_again = false;
-                    first_move = true;
-
-                    write!(
-                        stdout,
-                        "{}{}",
-                        termion::clear::All,
-                        termion::cursor::Goto(1, 1)
-                    ).unwrap();
-                    game.reset();
-                }
-                Key::Char('q' | 'Q' | 'n' | 'N')
-                    if ask_play_again =>
-                {
-                    break
-                }
-                Key::Char('q' | 'Q') => break,
-                Key::Char('w' | 'W' | 'k' | 'K') | Key::Up if !ask_play_again => {
-                    if game.cursor.row > 0 {
-                        game.cursor.row -= 1;
-                    }
-                }
-                Key::Char('a' | 'A' | 'h' | 'H') | Key::Left if !ask_play_again => {
-                    if game.cursor.col > 0 {
-                        game.cursor.col -= 1;
-                    }
-                }
-                Key::Char('s' | 'S' | 'j' | 'J') | Key::Down if !ask_play_again => {
-                    if game.cursor.row < game.rows - 1 {
-                        game.cursor.row += 1;
-                    }
-                }
-                Key::Char('d' | 'D' | 'l' | 'L') | Key::Right if !ask_play_again => {
-                    if game.cursor.col < game.cols - 1 {
-                        game.cursor.col += 1;
-                    }
-                }
-                Key::Char(' ') | Key::Insert if !ask_play_again => {
-                    if first_move {
-                        game.randomize_field();
-                        first_move = false;
-                    }
-
-                    if game.field.uncover_at(game.cursor.row, game.cursor.col) {
-                        game.lose_screen(&mut stdout);
-                        write!(stdout, "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n").unwrap();
-                        lost = true;
-                        ask_play_again = true;
-                    }
-                }
-                Key::Char('f' | 'F') if !first_move && !ask_play_again => {
-                    game.field.toggle_flag_at(game.cursor.row, game.cursor.col)
-                }
-                _ => {}
-            }
+        // If the user explicitly quit, then exit out of the program
+        if user_did_win.is_none() {
+            break;
         }
-        if !lost {
-            game.print_game_state(&mut stdout);
-            if game.field.covered_empty_cells == 0 {
-                write!(
-                    &mut stdout,
-                    "{}You won!{}\r\n",
-                    color::Fg(color::Green),
-                    color::Fg(color::Reset)
-                ).unwrap();
-                stdout.flush().unwrap();
-                write!(
-                    stdout,
-                    "Do you want to play again? Press y/Y/<space>/<insert> if yes, n/N if no\r\n"
-                ).unwrap();
-                ask_play_again = true;
+
+        mnswpr.print_game_state(&mut stdout, true)?;
+        if user_did_win.unwrap() {
+            write!(stdout, "{}You won!{FG_RESET}\r\n", color::Fg(color::Green))?;
+        } else {
+            write!(
+                stdout,
+                "{}You lost!{FG_RESET}\r\n",
+                color::Fg(color::LightRed),
+            )?;
+        }
+        write!(
+            stdout,
+            "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n"
+        )?;
+        stdout.flush()?;
+
+        let stdin = stdin();
+        for e in stdin.events() {
+            if let Event::Key(event) = e? {
+                match event {
+                    Key::Char(' ' | 'y' | 'Y' | '\n') => {
+                        break;
+                    }
+                    Key::Char('q' | 'Q' | 'n' | 'N') => {
+                        return Ok(());
+                    }
+                    _ => {}
+                }
             }
         }
     }
-    stdout.flush().unwrap();
+
+    Ok(())
 }

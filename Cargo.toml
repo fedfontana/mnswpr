@@ -1,6 +1,6 @@
 [package]
 name = "mnswpr"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["fedfontana"]
 description = "TUI minesweeper"
@@ -8,6 +8,9 @@ license = "MIT"
 repository = "https://github.com/fedfontana/minesweeper"
 
 [dependencies]
+anyhow = "1.0.68"
 clap = { version = "4.0.32", features = ["derive"] }
 rand = "0.8.5"
+serde = { version = "1.0.152", features = ["derive"] }
+serde_yaml = "0.9.16"
 termion = "2.0.1"

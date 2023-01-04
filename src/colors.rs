@@ -4,25 +4,52 @@ use std::fmt;
 use serde::de::{self, Visitor};
 
 pub struct PaletteElement {
-    pub fg: color::Fg<&'static dyn color::Color>,
-    pub bg: color::Bg<&'static dyn color::Color>,
+    pub fg: CFg,
+    pub bg: CBg,
 }
 
 impl PaletteElement {
-    pub const fn new(bg: &'static dyn color::Color, fg: &'static dyn color::Color) -> Self {
+    pub const fn new(bg: color::Rgb, fg: color::Rgb) -> Self {
         Self {
-            fg: color::Fg(fg),
-            bg: color::Bg(bg),
+            fg: CFg(color::Fg(fg)),
+            bg: CBg(color::Bg(bg)),
         }
     }
 }
 
-impl<'de> Deserialize<'de> for color::Rgb {
-    fn deserialize<D>(deserializer: D) -> Result<i32, D::Error>
+#[derive(Debug)]
+pub struct CFg(pub color::Fg<color::Rgb>);
+
+impl CFg {
+    pub const fn new(clr: color::Rgb) -> Self {
+        Self(color::Fg(clr))
+    }
+}
+
+#[derive(Debug)]
+pub struct CBg(pub color::Bg<color::Rgb>);
+
+impl CBg {
+    pub const fn new(clr: color::Rgb) -> Self {
+        Self(color::Bg(clr))
+    }
+}
+
+impl<'de> Deserialize<'de> for CFg {
+    fn deserialize<D>(deserializer: D) -> Result<CFg, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_str(HexColorVisitor)
+        Ok(CFg::new(deserializer.deserialize_str(HexColorVisitor)?))
+    }
+}
+
+impl<'de> Deserialize<'de> for CBg {
+    fn deserialize<D>(deserializer: D) -> Result<CBg, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(CBg::new(deserializer.deserialize_str(HexColorVisitor)?))
     }
 }
 
@@ -56,55 +83,55 @@ impl<'de> Visitor<'de> for HexColorVisitor {
 
 pub struct Palette {
     pub closed: PaletteElement,
-    pub open_bg: color::Bg<&'static dyn color::Color>,
-    pub neighbour_count_to_fg_color: [color::Fg<&'static dyn color::Color>; 9],
+    pub open_bg: CBg,
+    pub neighbour_count_to_fg_color: [CFg; 9],
     pub mine: PaletteElement,
     pub flag: PaletteElement,
-    pub cursor_fg: color::Fg<&'static dyn color::Color>,
+    pub cursor_fg: CFg,
     pub correct_flag: PaletteElement,
     pub wrong_flag: PaletteElement,
 }
 
 pub const OG_PALETTE: Palette = Palette {
-    closed: PaletteElement::new(&color::Rgb(30, 30, 30), &color::Rgb(30, 30, 30)),
-    open_bg: color::Bg(&color::Rgb(138, 138, 138)),
+    closed: PaletteElement::new(color::Rgb(30, 30, 30), color::Rgb(30, 30, 30)),
+    open_bg: CBg::new(color::Rgb(138, 138, 138)),
     neighbour_count_to_fg_color: [
-        color::Fg(&color::Reset),               // 0
-        color::Fg(&color::Rgb(0, 0, 255)),      // 1
-        color::Fg(&color::Rgb(0, 130, 0)),      // 2
-        color::Fg(&color::Rgb(200, 0, 0)),      // 3
-        color::Fg(&color::Rgb(0, 0, 131)),      // 4
-        color::Fg(&color::Rgb(132, 0, 1)),      // 5
-        color::Fg(&color::Rgb(0, 130, 132)),    // 6
-        color::Fg(&color::Rgb(132, 0, 132)),    // 7
-        color::Fg(&color::Rgb(117, 117, 117)),  // 8
+        CFg::new(color::Rgb(138, 138, 138)),               // 0
+        CFg::new(color::Rgb(0, 0, 255)),      // 1
+        CFg::new(color::Rgb(0, 130, 0)),      // 2
+        CFg::new(color::Rgb(200, 0, 0)),      // 3
+        CFg::new(color::Rgb(0, 0, 131)),      // 4
+        CFg::new(color::Rgb(132, 0, 1)),      // 5
+        CFg::new(color::Rgb(0, 130, 132)),    // 6
+        CFg::new(color::Rgb(132, 0, 132)),    // 7
+        CFg::new(color::Rgb(117, 117, 117)),  // 8
     ],
-    mine: PaletteElement::new(&color::Red, &color::White),
-    flag: PaletteElement::new(&color::Rgb(40, 100, 40), &color::White),
-    cursor_fg: color::Fg(&color::White),
-    correct_flag: PaletteElement::new(&color::Green, &color::White),
-    wrong_flag: PaletteElement::new(&color::LightRed, &color::White),
+    mine: PaletteElement::new(color::Rgb(180, 0, 0), color::Rgb(255, 255, 255)),
+    flag: PaletteElement::new(color::Rgb(40, 100, 40), color::Rgb(255, 255, 255)),
+    cursor_fg: CFg::new(color::Rgb(255, 255, 255)),
+    correct_flag: PaletteElement::new(color::Rgb(0, 255, 0), color::Rgb(255, 255, 255)),
+    wrong_flag: PaletteElement::new(color::Rgb(255, 0, 0), color::Rgb(255, 255, 255)),
 };
 
 pub const MNSWPR_PALETTE: Palette = Palette {
-    closed: PaletteElement::new(&color::Rgb(30, 30, 30), &color::White),
-    open_bg: color::Bg(&color::Rgb(30, 30, 30)),
+    closed: PaletteElement::new(color::Rgb(30, 30, 30), color::Rgb(255, 255, 255)),
+    open_bg: CBg::new(color::Rgb(30, 30, 30)),
     neighbour_count_to_fg_color: [
-        color::Fg(&color::Reset),               // 0
-        color::Fg(&color::Rgb(70, 100, 255)),   // 1
-        color::Fg(&color::Rgb(0, 130, 0)),      // 2
-        color::Fg(&color::Rgb(200, 0, 0)),      // 3
-        color::Fg(&color::Rgb(200, 30, 200)),   // 4
-        color::Fg(&color::Rgb(132, 0, 1)),      // 5
-        color::Fg(&color::Rgb(0, 130, 132)),    // 6
-        color::Fg(&color::Rgb(132, 0, 132)),    // 7
-        color::Fg(&color::Rgb(117, 117, 117)),  // 8
+        CFg::new(color::Rgb(30, 30, 30)),     // 0
+        CFg::new(color::Rgb(70, 100, 255)),   // 1
+        CFg::new(color::Rgb(0, 130, 0)),      // 2
+        CFg::new(color::Rgb(200, 0, 0)),      // 3
+        CFg::new(color::Rgb(200, 30, 200)),   // 4
+        CFg::new(color::Rgb(132, 0, 1)),      // 5
+        CFg::new(color::Rgb(0, 130, 132)),    // 6
+        CFg::new(color::Rgb(132, 0, 132)),    // 7
+        CFg::new(color::Rgb(117, 117, 117)),  // 8
     ],
-    mine: PaletteElement::new(&color::Red, &color::White),
-    flag: PaletteElement::new(&color::Rgb(40, 100, 40), &color::White),
-    cursor_fg: color::Fg(&color::White),
-    correct_flag: PaletteElement::new(&color::Green, &color::White),
-    wrong_flag: PaletteElement::new(&color::LightRed, &color::White),
+    mine: PaletteElement::new(color::Rgb(180, 0, 0), color::Rgb(255, 255, 255)),
+    flag: PaletteElement::new(color::Rgb(40, 100, 40), color::Rgb(255, 255, 255)),
+    cursor_fg: CFg::new(color::Rgb(255, 255, 255)),
+    correct_flag: PaletteElement::new(color::Rgb(0, 255, 0), color::Rgb(255, 255, 255)),
+    wrong_flag: PaletteElement::new(color::Rgb(255, 0, 0), color::Rgb(255, 255, 255)),
 };
 
 pub const BG_RESET: color::Bg<color::Reset> = color::Bg(color::Reset);

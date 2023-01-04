@@ -83,8 +83,8 @@ impl Cell {
                 }
             },
             State::Closed => {
-                bg = &palette.closed.bg; 
-                fg = &palette.closed.fg; 
+                bg = &palette.closed.bg;
+                fg = &palette.closed.fg;
                 repr = ".".to_string();
             }
             State::Flagged => {

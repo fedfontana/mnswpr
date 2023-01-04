@@ -115,7 +115,10 @@ impl Field {
                         continue;
                     }
 
-                    if self.get_unchecked(current_row as usize, current_col as usize).contains_mine() {
+                    if self
+                        .get_unchecked(current_row as usize, current_col as usize)
+                        .contains_mine()
+                    {
                         count += 1;
                     }
                 }

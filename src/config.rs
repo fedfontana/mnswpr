@@ -1,10 +1,10 @@
 use crate::colors::{Palette, MNSWPR_PALETTE, OG_PALETTE};
-use std::path::Path;
-use std::str::FromStr;
 use std::fmt::Display;
 use std::fs;
+use std::path::Path;
+use std::str::FromStr;
 
-use anyhow::{ Result, Context };
+use anyhow::{Context, Result};
 
 #[derive(Clone)]
 pub enum Theme {

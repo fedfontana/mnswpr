@@ -211,19 +211,14 @@ impl Mnswpr {
                 }
                 Key::Char('f' | 'F') if !first_move => {
                     if assisted_flagging {
-                        let cell = self
-                            .field
-                            .get_unchecked(crow, ccol);
+                        let cell = self.field.get_unchecked(crow, ccol);
 
                         let non_open_nbors = self
                             .get_non_open_nbors_amt(crow, ccol)
                             .expect("Position out of bounds");
 
-                        if cell.is_open()
-                            && cell.neighbouring_bomb_count == non_open_nbors
-                        {
-                            self.field
-                                .unflag_all_closed_around(crow, ccol);
+                        if cell.is_open() && cell.neighbouring_bomb_count == non_open_nbors {
+                            self.field.unflag_all_closed_around(crow, ccol);
                         }
                     }
 

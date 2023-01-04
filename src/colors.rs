@@ -3,6 +3,7 @@ use serde::{Deserialize, Deserializer};
 use std::fmt;
 use serde::de::{self, Visitor};
 
+#[derive(Deserialize, Debug)]
 pub struct PaletteElement {
     pub fg: CFg,
     pub bg: CBg,
@@ -81,6 +82,7 @@ impl<'de> Visitor<'de> for HexColorVisitor {
     }
 }
 
+#[derive(Deserialize, Debug)]
 pub struct Palette {
     pub closed: PaletteElement,
     pub open_bg: CBg,

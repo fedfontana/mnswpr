@@ -12,7 +12,9 @@ use clap::{command, Parser};
 
 use anyhow::{Context, Result};
 
-use termion::cursor::HideCursor;
+use termion::event::{Event, Key};
+use termion::input::TermRead;
+use termion::{cursor::HideCursor, color};
 use termion::raw::IntoRawMode;
 
 mod cell;
@@ -96,7 +98,6 @@ fn main() -> Result<()> {
 
     let mut game = Mnswpr::new(rows, cols, args.mine_percentage, args.theme.to_palette()?);
 
-    let stdin = stdin();
     let mut stdout = HideCursor::from(stdout().into_raw_mode()?);
 
     write!(
@@ -106,9 +107,50 @@ fn main() -> Result<()> {
         termion::cursor::Goto(1, 1)
     )?;
 
-    game.play(&mut stdout, args.assisted_opening, args.assisted_flagging)?;
+    loop {
+        write!(
+            stdout,
+            "{}{}",
+            termion::clear::All,
+            termion::cursor::Goto(1, 1)
+        )?;
+        game.reset();
 
-    stdout.flush()?;
+        let user_did_win = game.play(&mut stdout, args.assisted_opening, args.assisted_flagging)?;
+
+        // If the user explicitly quit, then exit out of the program
+        if user_did_win.is_none() {
+            break;
+        }
+
+        if user_did_win.unwrap() {
+            write!(
+                stdout,
+                "{}You won!{}\r\n",
+                color::Fg(color::Green),
+                color::Fg(color::Reset)
+            )?;
+        } else {
+            game.lose_screen(&mut stdout)?;
+        }
+        write!(stdout, "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n")?;
+        stdout.flush()?;
+
+        let stdin = stdin();
+        for e in stdin.events() {
+            if let Event::Key(event) = e? {
+                match event {
+                    Key::Char(' ' | 'y' | 'Y' | '\n') => {
+                        break;
+                    }
+                    Key::Char('q' | 'Q' | 'n' | 'N') => {
+                        return Ok(());
+                    },
+                    _ => {},
+                }
+            }
+        }
+    }
 
     Ok(())
 }

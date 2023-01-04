@@ -37,6 +37,22 @@ impl Cell {
         self.state = new_state;
     }
 
+    pub fn is_open(&self) -> bool {
+        matches!(self.state, State::Open)
+    }
+
+    pub fn is_closed(&self) -> bool {
+        matches!(self.state, State::Closed)
+    }
+
+    pub fn is_flagged(&self) -> bool {
+        matches!(self.state, State::Flagged)
+    }
+
+    pub fn contains_mine(&self) -> bool {
+        matches!(self.content, Content::Mine)
+    }
+
     /// This method does not reset the fg/bg color!!
     pub fn to_string_with_palette(&self, palette: &colors::Palette, with_cursor: bool) -> String {
         let sep = if with_cursor { ('[', ']') } else { (' ', ' ') };

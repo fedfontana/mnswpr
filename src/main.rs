@@ -15,8 +15,8 @@ use anyhow::{Context, Result};
 use colors::FG_RESET;
 use termion::event::{Event, Key};
 use termion::input::TermRead;
-use termion::{cursor::HideCursor, color};
 use termion::raw::IntoRawMode;
+use termion::{color, cursor::HideCursor};
 
 mod cell;
 mod colors;
@@ -119,11 +119,7 @@ fn main() -> Result<()> {
 
         game.print_game_state(&mut stdout, true)?;
         if user_did_win.unwrap() {
-            write!(
-                stdout,
-                "{}You won!{FG_RESET}\r\n",
-                color::Fg(color::Green),
-            )?;
+            write!(stdout, "{}You won!{FG_RESET}\r\n", color::Fg(color::Green))?;
         } else {
             write!(
                 stdout,
@@ -131,7 +127,10 @@ fn main() -> Result<()> {
                 color::Fg(color::LightRed),
             )?;
         }
-        write!(stdout, "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n")?;
+        write!(
+            stdout,
+            "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n"
+        )?;
         stdout.flush()?;
 
         let stdin = stdin();
@@ -143,8 +142,8 @@ fn main() -> Result<()> {
                     }
                     Key::Char('q' | 'Q' | 'n' | 'N') => {
                         return Ok(());
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
             }
         }

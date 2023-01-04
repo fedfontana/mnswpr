@@ -80,7 +80,7 @@ impl FromStr for Theme {
                     ));
                 } 
                 if !path_obj.is_file() {
-                    return Err("The provided custom theme path (\"{path}\") is not a file.".to_string());
+                    return Err(format!("The provided custom theme path (\"{path}\") is not a file."));
                 } else {
                     Ok(Self::Custom(path.to_string()))
                 }

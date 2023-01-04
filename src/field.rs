@@ -124,7 +124,6 @@ impl Field {
                     }
                 }
             }
-
             self.grid[idx].neighbouring_bomb_count = count;
         }
     }
@@ -169,7 +168,7 @@ impl Field {
         match field.get(current_row as usize, current_col as usize) {
             // if state is Open or Flagged, do nothing
             Some(&cell::Cell {
-                state: cell::State::Closed,
+                state: cell::State::Open | cell::State::Flagged,
                 ..
             }) => return,
 

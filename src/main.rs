@@ -271,35 +271,35 @@ fn main() -> Result<()> {
                         first_move = false;
                     }
 
-                    if let Some(cell) = game.field.get(game.cursor.row, game.cursor.col) {
-                        if args.assisted_opening
-                            && matches!(cell.state, cell::State::Open)
-                            && game
-                                .field
-                                .get_flagged_nbors_amt(game.cursor.row, game.cursor.col)
-                                .expect("Position out of bounds")
-                                == cell.neighbouring_bomb_count
+                    let cell = game.field.get_unchecked(game.cursor.row, game.cursor.col);
+                    if args.assisted_opening
+                        && matches!(cell.state, cell::State::Open)
+                        && game
+                            .field
+                            .get_flagged_nbors_amt(game.cursor.row, game.cursor.col)
+                            .expect("Position out of bounds")
+                            == cell.neighbouring_bomb_count
+                    {
+                        if game
+                            .field
+                            .uncover_around_cell_at(game.cursor.row, game.cursor.col)
+                            .expect("Position out of bounds")
                         {
-                            if game
-                                .field    
-                                .uncover_around_cell_at(game.cursor.row, game.cursor.col)
-                                .expect("Position out of bounds")
-                            {
-                                game.lose_screen(&mut stdout)?;
-                                write!(stdout, "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n")?;
-                                lost = true;
-                                ask_play_again = true;
-                            }
-                        } else {
-                            if game.field
-                                .uncover_at(game.cursor.row, game.cursor.col)
-                                .expect("Position out of bounds")
-                            {
-                                game.lose_screen(&mut stdout)?;
-                                write!(stdout, "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n")?;
-                                lost = true;
-                                ask_play_again = true;
-                            }
+                            game.lose_screen(&mut stdout)?;
+                            write!(stdout, "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n")?;
+                            lost = true;
+                            ask_play_again = true;
+                        }
+                    } else {
+                        if game
+                            .field
+                            .uncover_at(game.cursor.row, game.cursor.col)
+                            .expect("Cursor out of bounds")
+                        {
+                            game.lose_screen(&mut stdout)?;
+                            write!(stdout, "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n")?;
+                            lost = true;
+                            ask_play_again = true;
                         }
                     }
                 }

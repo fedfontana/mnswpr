@@ -16,7 +16,7 @@ pub struct Mnswpr {
     pub rows: usize,
     pub cols: usize,
     mine_percentage: u8,
-    palette: Palette
+    palette: Palette,
 }
 
 impl Mnswpr {

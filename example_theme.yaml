@@ -1,0 +1,27 @@
+closed:
+  bg: '#000000'
+  fg: '#ffffff'
+open_bg: '#000000'
+neighbour_count_to_fg_color:
+  - '#ffffff' # 0
+  - '#ffffff' # 1
+  - '#ffffff' # 2
+  - '#ffffff' # 3
+  - '#ffffff' # 4
+  - '#ffffff' # 5
+  - '#ffffff' # 6
+  - '#ffffff' # 7
+  - '#ffffff' # 8
+mine:
+  fg: '#ff0000'
+  bg: '#000000'
+flag:
+  fg: '#0000ff'
+  bg: '#000000'
+cursor_fg: '#ffffff'
+correct_flag: 
+  fg: '#00ff00'
+  bg: '#000000'
+wrong_flag: 
+  fg: '#ff0000'
+  bg: '#000000'

@@ -7,7 +7,9 @@
 // )]
 
 use std::fmt::Display;
+use std::fs;
 use std::io::{stdin, stdout, Write};
+use std::path::Path;
 use std::str::FromStr;
 
 use clap::{command, Parser};
@@ -30,24 +32,36 @@ use crate::game::Mnswpr;
 enum Theme {
     Mnswpr,
     OG,
+    Custom(String),
 }
 
 impl Theme {
-    fn to_palette(&self) -> Palette {
+    fn to_palette(&self) -> Result<Palette, String> {
         match self {
-            Theme::Mnswpr => MNSWPR_PALETTE,
-            Theme::OG => OG_PALETTE,
+            Theme::Mnswpr => Ok(MNSWPR_PALETTE),
+            Theme::OG => Ok(OG_PALETTE),
+            Theme::Custom(path) => {
+                let theme_data = fs::read_to_string(path);
+                if theme_data.is_err() {
+                    return Err("Could not read theme data.".to_string());
+                }
+                let custom_palette: Result<Palette, serde_yaml::Error> =  serde_yaml::from_str(&theme_data.unwrap());
+                if custom_palette.is_err() {
+                    return Err(format!("{}", custom_palette.unwrap_err().to_string()));
+                }
+                Ok(custom_palette.unwrap())
+            }
         }
     }
 }
 
 impl Display for Theme {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let repr = match self {
-            Theme::Mnswpr => "mnswpr",
-            Theme::OG => "og",
-        };
-        write!(f, "{repr}")
+        match self {
+            Theme::Mnswpr => write!(f, "mnswpr"),
+            Theme::OG => write!(f, "og"),
+            Theme::Custom(path) => write!(f, "Custom theme at {path}")
+        }
     }
 }
 
@@ -58,9 +72,19 @@ impl FromStr for Theme {
         match s.to_lowercase().as_str() {
             "mnswpr" => Ok(Self::Mnswpr),
             "og" => Ok(Self::OG),
-            t => Err(format!(
-                "Expected one of \"mnswpr\" and \"og\", found: \"{t}\""
-            )),
+            path => {
+                let path_obj = Path::new(path);
+                if !path_obj.exists() {
+                    return Err(format!(
+                        "Expected one of \"mnswpr\", \"og\", or a custom theme path. Custom theme file at path \"{path}\" not found."
+                    ));
+                } 
+                if !path_obj.is_file() {
+                    return Err("The provided custom theme path (\"{path}\") is not a file.".to_string());
+                } else {
+                    Ok(Self::Custom(path.to_string()))
+                }
+            },
         }
     }
 }
@@ -181,12 +205,12 @@ fn parse_field_size(args: &Args) -> (usize, usize) {
     (cols, rows)
 }
 
-fn main() {
+fn main() -> Result<(), String> {
     let args = Args::parse();
 
     let (cols, rows) = parse_field_size(&args);
 
-    let mut game = Mnswpr::new(rows, cols, args.mine_percentage, args.theme.to_palette());
+    let mut game = Mnswpr::new(rows, cols, args.mine_percentage, args.theme.to_palette()?);
 
     let stdin = stdin();
     let mut stdout = HideCursor::from(stdout().into_raw_mode().unwrap());
@@ -319,4 +343,6 @@ fn main() {
         }
     }
     stdout.flush().unwrap();
+
+    Ok(())
 }

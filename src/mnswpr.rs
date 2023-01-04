@@ -55,7 +55,7 @@ impl Mnswpr {
 
         for row in 0..self.rows {
             for col in 0..self.cols {
-                let cell = self.field.get_unchecked(row, col);
+                let cell = self.get_unchecked(row, col);
 
                 let cell_repr = cell.to_string_with_palette(
                     &self.palette,
@@ -78,7 +78,7 @@ impl Mnswpr {
 
         for row in 0..self.rows {
             for col in 0..self.cols {
-                let cell = self.field.get_unchecked(row, col);
+                let cell = self.get_unchecked(row, col);
 
                 let cell_repr = cell.to_string_with_palette_lost(
                     &self.palette,
@@ -182,18 +182,16 @@ impl Mnswpr {
                         first_move = false;
                     }
 
-                    let cell = self.field.get_unchecked(crow, ccol);
+                    let cell = self.get_unchecked(crow, ccol);
 
                     if assisted_opening
                         && cell.is_open()
                         && self
-                            .field
                             .get_flagged_nbors_amt(crow, ccol)
                             .expect("Cursor out of bounds")
                             == cell.neighbouring_bomb_count
                     {
                         let exploded = self
-                            .field
                             .uncover_around_cell_at(crow, ccol)
                             .expect("Cursor out of bounds");
                         if exploded {
@@ -201,7 +199,6 @@ impl Mnswpr {
                         }
                     } else {
                         if self
-                            .field
                             .uncover_at(crow, ccol)
                             .expect("Cursor out of bounds")
                         {
@@ -211,19 +208,18 @@ impl Mnswpr {
                 }
                 Key::Char('f' | 'F') if !first_move => {
                     if assisted_flagging {
-                        let cell = self.field.get_unchecked(crow, ccol);
+                        let cell = self.get_unchecked(crow, ccol);
 
                         let non_open_nbors = self
                             .get_non_open_nbors_amt(crow, ccol)
                             .expect("Position out of bounds");
 
                         if cell.is_open() && cell.neighbouring_bomb_count == non_open_nbors {
-                            self.field.unflag_all_closed_around(crow, ccol);
+                            self.unflag_all_closed_around(crow, ccol);
                         }
                     }
 
-                    self.field
-                        .toggle_flag_at(crow, ccol)
+                    self.toggle_flag_at(crow, ccol)
                         .expect("Cursor position out of bounds");
                 }
                 _ => {}

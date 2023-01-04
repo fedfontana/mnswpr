@@ -22,9 +22,9 @@ mod cell;
 mod colors;
 mod config;
 mod field;
-mod game;
+mod mnswpr;
 
-use crate::game::Mnswpr;
+use crate::mnswpr::Mnswpr;
 
 use config::{SizePreset, Theme};
 
@@ -97,7 +97,7 @@ fn main() -> Result<()> {
 
     let (cols, rows) = parse_field_size(&args).context("Could not get the size of the terminal")?;
 
-    let mut game = Mnswpr::new(rows, cols, args.mine_percentage, args.theme.to_palette()?);
+    let mut mnswpr = Mnswpr::new(rows, cols, args.mine_percentage, args.theme.to_palette()?);
 
     let mut stdout = HideCursor::from(stdout().into_raw_mode()?);
 
@@ -108,16 +108,16 @@ fn main() -> Result<()> {
             termion::clear::All,
             termion::cursor::Goto(1, 1)
         )?;
-        game.reset();
+        mnswpr.reset();
 
-        let user_did_win = game.play(&mut stdout, args.assisted_opening, args.assisted_flagging)?;
+        let user_did_win = mnswpr.play(&mut stdout, args.assisted_opening, args.assisted_flagging)?;
 
         // If the user explicitly quit, then exit out of the program
         if user_did_win.is_none() {
             break;
         }
 
-        game.print_game_state(&mut stdout, true)?;
+        mnswpr.print_game_state(&mut stdout, true)?;
         if user_did_win.unwrap() {
             write!(stdout, "{}You won!{FG_RESET}\r\n", color::Fg(color::Green))?;
         } else {

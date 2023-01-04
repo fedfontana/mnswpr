@@ -11,6 +11,13 @@ pub struct Cursor {
     pub col: usize,
 }
 
+pub enum Direction {
+    Up,
+    Left,
+    Right,
+    Down,
+}
+
 pub struct Mnswpr {
     pub field: Field,
     pub cursor: Cursor,
@@ -119,6 +126,31 @@ impl Mnswpr {
         )?;
         f.flush()?;
         Ok(())
+    }
+
+    pub fn move_cursor(&mut self, d: Direction) {
+        match d {
+            Direction::Up => {
+                if self.cursor.row > 0 {
+                    self.cursor.row -= 1;
+                }
+            },
+            Direction::Left => {
+                if self.cursor.col > 0 {
+                    self.cursor.col -= 1;
+                }
+            },
+            Direction::Right => {
+                if self.cursor.col < self.cols - 1 {
+                    self.cursor.col += 1;
+                }
+            },
+            Direction::Down => {
+                if self.cursor.row < self.rows - 1 {
+                    self.cursor.row += 1;
+                }
+            },
+        }
     }
 }
 

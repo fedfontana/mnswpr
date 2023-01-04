@@ -16,6 +16,7 @@ use clap::{command, Parser};
 
 use anyhow::{Context, Result};
 
+use game::Direction;
 use termion::color;
 use termion::cursor::HideCursor;
 use termion::event::{Event, Key};
@@ -245,26 +246,10 @@ fn main() -> Result<()> {
                 }
                 Key::Char('q' | 'Q' | 'n' | 'N') if ask_play_again => break,
                 Key::Char('q' | 'Q') => break,
-                Key::Char('w' | 'W' | 'k' | 'K') | Key::Up if !ask_play_again => {
-                    if game.cursor.row > 0 {
-                        game.cursor.row -= 1;
-                    }
-                }
-                Key::Char('a' | 'A' | 'h' | 'H') | Key::Left if !ask_play_again => {
-                    if game.cursor.col > 0 {
-                        game.cursor.col -= 1;
-                    }
-                }
-                Key::Char('s' | 'S' | 'j' | 'J') | Key::Down if !ask_play_again => {
-                    if game.cursor.row < game.rows - 1 {
-                        game.cursor.row += 1;
-                    }
-                }
-                Key::Char('d' | 'D' | 'l' | 'L') | Key::Right if !ask_play_again => {
-                    if game.cursor.col < game.cols - 1 {
-                        game.cursor.col += 1;
-                    }
-                }
+                Key::Char('w' | 'W' | 'k' | 'K') | Key::Up if !ask_play_again => game.move_cursor(Direction::Up),
+                Key::Char('a' | 'A' | 'h' | 'H') | Key::Left if !ask_play_again => game.move_cursor(Direction::Left),
+                Key::Char('s' | 'S' | 'j' | 'J') | Key::Down if !ask_play_again => game.move_cursor(Direction::Down),
+                Key::Char('d' | 'D' | 'l' | 'L') | Key::Right if !ask_play_again => game.move_cursor(Direction::Right),
                 Key::Char(' ' | '\n') if !ask_play_again => {
                     if first_move {
                         game.randomize_field();

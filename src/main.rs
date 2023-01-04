@@ -12,6 +12,7 @@ use clap::{command, Parser};
 
 use anyhow::{Context, Result};
 
+use colors::FG_RESET;
 use termion::event::{Event, Key};
 use termion::input::TermRead;
 use termion::{cursor::HideCursor, color};
@@ -100,13 +101,6 @@ fn main() -> Result<()> {
 
     let mut stdout = HideCursor::from(stdout().into_raw_mode()?);
 
-    write!(
-        stdout,
-        "{}{}",
-        termion::clear::All,
-        termion::cursor::Goto(1, 1)
-    )?;
-
     loop {
         write!(
             stdout,
@@ -123,15 +117,19 @@ fn main() -> Result<()> {
             break;
         }
 
+        game.print_game_state(&mut stdout, true)?;
         if user_did_win.unwrap() {
             write!(
                 stdout,
-                "{}You won!{}\r\n",
+                "{}You won!{FG_RESET}\r\n",
                 color::Fg(color::Green),
-                color::Fg(color::Reset)
             )?;
         } else {
-            game.lose_screen(&mut stdout)?;
+            write!(
+                stdout,
+                "{}You lost!{FG_RESET}\r\n",
+                color::Fg(color::LightRed),
+            )?;
         }
         write!(stdout, "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n")?;
         stdout.flush()?;

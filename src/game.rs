@@ -95,10 +95,11 @@ impl Mnswpr {
         Ok(())
     }
 
-    /// Prints the game state. Prints bomb count and flag count and appends
-    /// the output of `self.print_field` to it
+    /// Prints the game state. Prints header (bomb and flag count)
+    /// Then prints the current state of the board if `open_everything == false`
+    /// otherwise print the open board with the status of the flags (placed correctly on a mine or placed on an empty cell)
     /// May return an error if it was not able to write in `f`
-    pub fn print_game_state(&self, f: &mut impl Write) -> anyhow::Result<()> {
+    pub fn print_game_state(&self, f: &mut impl Write, open_everything: bool) -> anyhow::Result<()> {
         write!(
             f,
             "{}Mines:{}    Flags:{}\r\n",
@@ -106,29 +107,11 @@ impl Mnswpr {
             self.field.mine_count,
             self.field.flag_count
         )?;
-        self.print_field(f)?;
-        f.flush()?;
-        Ok(())
-    }
-
-    /// Prints the bomb count, flag count, appends the result of `self.print_field_game_lost`
-    /// to it and then prints `You lost`
-    /// May return an error if it was not able to write in `f`
-    pub fn lose_screen(&self, f: &mut impl Write) -> anyhow::Result<()> {
-        write!(
-            f,
-            "{}Mines:{}    Flags:{}\r\n",
-            termion::cursor::Goto(1, 1),
-            self.field.mine_count,
-            self.field.flag_count
-        )?;
-        self.print_field_game_lost(f)?;
-        write!(
-            f,
-            "{}You lost!{}\r\n",
-            color::Fg(color::LightRed),
-            color::Fg(color::Reset)
-        )?;
+        if !open_everything {
+            self.print_field(f)?;
+        } else {
+            self.print_field_game_lost(f)?;
+        }
         f.flush()?;
         Ok(())
     }
@@ -170,7 +153,7 @@ impl Mnswpr {
     ) -> anyhow::Result<Option<bool>> {
         let stdin = stdin();
 
-        self.print_game_state(stdout)?;
+        self.print_game_state(stdout, false)?;
         stdout.flush()?;
 
         let mut first_move = true;
@@ -269,7 +252,7 @@ impl Mnswpr {
                     _ => {}
                 }
             }
-            self.print_game_state(stdout)?;
+            self.print_game_state(stdout, false)?;
             if self.field.covered_empty_cells == 0 {
                 return Ok(Some(true));
                 // write!(

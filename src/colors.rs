@@ -1,4 +1,7 @@
 use termion::color;
+use serde::{Deserialize, Deserializer};
+use std::fmt;
+use serde::de::{self, Visitor};
 
 pub struct PaletteElement {
     pub fg: color::Fg<&'static dyn color::Color>,
@@ -11,6 +14,43 @@ impl PaletteElement {
             fg: color::Fg(fg),
             bg: color::Bg(bg),
         }
+    }
+}
+
+impl<'de> Deserialize<'de> for color::Rgb {
+    fn deserialize<D>(deserializer: D) -> Result<i32, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(HexColorVisitor)
+    }
+}
+
+struct HexColorVisitor;
+impl<'de> Visitor<'de> for HexColorVisitor {
+    type Value = color::Rgb;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a color in the format #rrggbb")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error, {
+                let s = v.to_lowercase();
+                if s.len() != 7 {
+                    return Err(E::custom("hex color must have lenght 7"));
+                }
+                
+                let r = u8::from_str_radix(&s[1..3], 16);
+                let g = u8::from_str_radix(&s[3..5], 16);
+                let b = u8::from_str_radix(&s[5..7], 16);
+                
+                if r.is_err() || g.is_err() || b.is_err() {
+                    return Err(E::custom("color values out of range"));
+                }
+            
+                Ok(color::Rgb(r.unwrap(), g.unwrap(), b.unwrap()))
     }
 }
 

@@ -26,6 +26,23 @@ mod game;
 use crate::colors::{Palette, MNSWPR_PALETTE, OG_PALETTE};
 use crate::game::Mnswpr;
 
+pub fn decode_hex(input: &str) -> Result<color::Rgb, String> {
+    let s = input.to_lowercase();
+    if s.len() != 7 {
+        return Err("The colors must be valid hex: #rrggbb".to_string());
+    }
+
+    let r = u8::from_str_radix(&s[1..3], 16);
+    let g = u8::from_str_radix(&s[3..5], 16);
+    let b = u8::from_str_radix(&s[5..7], 16);
+    
+    if r.is_err() || g.is_err() || b.is_err() {
+        return Err(format!("The colors must be valid hex. Expected colors in format #rrggbb, got: {input}"));
+    }
+
+    Ok(color::Rgb(r.unwrap(), g.unwrap(), b.unwrap()))
+}
+
 #[derive(Clone)]
 enum Theme {
     Mnswpr,

@@ -8,6 +8,7 @@ license = "MIT"
 repository = "https://github.com/fedfontana/minesweeper"
 
 [dependencies]
+anyhow = "1.0.68"
 clap = { version = "4.0.32", features = ["derive"] }
 rand = "0.8.5"
 serde = { version = "1.0.152", features = ["derive"] }

@@ -14,6 +14,8 @@ use std::str::FromStr;
 
 use clap::{command, Parser};
 
+use anyhow::{Context, Result};
+
 use termion::color;
 use termion::cursor::HideCursor;
 use termion::event::{Event, Key};
@@ -36,20 +38,14 @@ enum Theme {
 }
 
 impl Theme {
-    fn to_palette(&self) -> Result<Palette, String> {
+    fn to_palette(&self) -> Result<Palette> {
         match self {
             Theme::Mnswpr => Ok(MNSWPR_PALETTE),
             Theme::OG => Ok(OG_PALETTE),
             Theme::Custom(path) => {
-                let theme_data = fs::read_to_string(path);
-                if theme_data.is_err() {
-                    return Err("Could not read theme data.".to_string());
-                }
-                let custom_palette: Result<Palette, serde_yaml::Error> =  serde_yaml::from_str(&theme_data.unwrap());
-                if custom_palette.is_err() {
-                    return Err(format!("{}", custom_palette.unwrap_err().to_string()));
-                }
-                Ok(custom_palette.unwrap())
+                let theme_data = fs::read_to_string(path).context("Could not read theme data.")?;
+                let custom_palette = serde_yaml::from_str(&theme_data)?;
+                Ok(custom_palette)
             }
         }
     }
@@ -60,7 +56,7 @@ impl Display for Theme {
         match self {
             Theme::Mnswpr => write!(f, "mnswpr"),
             Theme::OG => write!(f, "og"),
-            Theme::Custom(path) => write!(f, "Custom theme at {path}")
+            Theme::Custom(path) => write!(f, "Custom theme at {path}"),
         }
     }
 }
@@ -78,13 +74,15 @@ impl FromStr for Theme {
                     return Err(format!(
                         "Expected one of \"mnswpr\", \"og\", or a custom theme path. Custom theme file at path \"{path}\" not found."
                     ));
-                } 
+                }
                 if !path_obj.is_file() {
-                    return Err(format!("The provided custom theme path (\"{path}\") is not a file."));
+                    return Err(format!(
+                        "The provided custom theme path (\"{path}\") is not a file."
+                    ));
                 } else {
                     Ok(Self::Custom(path.to_string()))
                 }
-            },
+            }
         }
     }
 }
@@ -127,7 +125,7 @@ impl Display for SizePreset {
 impl FromStr for SizePreset {
     type Err = String;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
             "tiny" => Ok(SizePreset::Tiny),
             "small" => Ok(SizePreset::Small),
@@ -146,7 +144,7 @@ impl FromStr for SizePreset {
 /// Move the cursor with either wasd, hjkl or the arrows.
 ///
 /// Flag/unflag the cell under the cursor by pressing f, or uncover it by pressing <space> or <insert>.
-/// 
+///
 /// Additionally, if you think you have flagged all the mines around a cell, you can press <space> or <enter> on it to open all
 /// of the closed cells around it. Note that this will try to open cells that contain mines!
 #[derive(Parser)]
@@ -172,20 +170,20 @@ struct Args {
     #[arg(short, long, default_value_t=Theme::Mnswpr)]
     theme: Theme,
 
-    /// If active, trying to flag an open cell with N neighboring mines and N non-open adjacent cells will result in 
+    /// If active, trying to flag an open cell with N neighboring mines and N non-open adjacent cells will result in
     /// all of those cells getting flagged
-    #[arg(long, default_value_t=false)]
+    #[arg(long, default_value_t = false)]
     assisted_flagging: bool,
- 
+
     /// If active, trying to open an open cell with N neighboring mines and N flagged adjacent cells will result in all
     /// of those cells getting opened
-    #[arg(long, default_value_t=false)]
+    #[arg(long, default_value_t = false)]
     assisted_opening: bool,
 }
 
 /// Returns (cols, rows) after parsing the cli arguments and clipping them with the size of the terminal minus some chars for padding
-fn parse_field_size(args: &Args) -> (usize, usize) {
-    let termsize = termion::terminal_size().unwrap();
+fn parse_field_size(args: &Args) -> Result<(usize, usize)> {
+    let termsize = termion::terminal_size()?;
 
     let cols = if args.cols.is_some() {
         args.cols.unwrap()
@@ -202,29 +200,28 @@ fn parse_field_size(args: &Args) -> (usize, usize) {
     };
     let rows = rows.min(termsize.1 as u64 - 4) as usize;
 
-    (cols, rows)
+    Ok((cols, rows))
 }
 
-fn main() -> Result<(), String> {
+fn main() -> Result<()> {
     let args = Args::parse();
 
-    let (cols, rows) = parse_field_size(&args);
+    let (cols, rows) = parse_field_size(&args).context("Could not get the size of the terminal")?;
 
     let mut game = Mnswpr::new(rows, cols, args.mine_percentage, args.theme.to_palette()?);
 
     let stdin = stdin();
-    let mut stdout = HideCursor::from(stdout().into_raw_mode().unwrap());
+    let mut stdout = HideCursor::from(stdout().into_raw_mode()?);
 
     write!(
         stdout,
         "{}{}",
         termion::clear::All,
         termion::cursor::Goto(1, 1)
-    )
-    .unwrap();
+    )?;
 
-    game.print_game_state(&mut stdout);
-    stdout.flush().unwrap();
+    game.print_game_state(&mut stdout)?;
+    stdout.flush()?;
 
     let mut lost = false;
     let mut ask_play_again = false;
@@ -243,8 +240,7 @@ fn main() -> Result<(), String> {
                         "{}{}",
                         termion::clear::All,
                         termion::cursor::Goto(1, 1)
-                    )
-                    .unwrap();
+                    )?;
                     game.reset();
                 }
                 Key::Char('q' | 'Q' | 'n' | 'N') if ask_play_again => break,
@@ -276,27 +272,31 @@ fn main() -> Result<(), String> {
                     }
 
                     if let Some(cell) = game.field.get(game.cursor.row, game.cursor.col) {
-                        if  args.assisted_opening &&
-                            matches!(cell.state, cell::State::Open)
+                        if args.assisted_opening
+                            && matches!(cell.state, cell::State::Open)
                             && game
                                 .field
                                 .get_flagged_nbors_amt(game.cursor.row, game.cursor.col)
-                                .unwrap()
+                                .expect("Position out of bounds")
                                 == cell.neighbouring_bomb_count
                         {
                             if game
-                                .field
+                                .field    
                                 .uncover_around_cell_at(game.cursor.row, game.cursor.col)
+                                .expect("Position out of bounds")
                             {
-                                game.lose_screen(&mut stdout);
-                                write!(stdout, "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n").unwrap();
+                                game.lose_screen(&mut stdout)?;
+                                write!(stdout, "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n")?;
                                 lost = true;
                                 ask_play_again = true;
                             }
                         } else {
-                            if game.field.uncover_at(game.cursor.row, game.cursor.col) {
-                                game.lose_screen(&mut stdout);
-                                write!(stdout, "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n").unwrap();
+                            if game.field
+                                .uncover_at(game.cursor.row, game.cursor.col)
+                                .expect("Position out of bounds")
+                            {
+                                game.lose_screen(&mut stdout)?;
+                                write!(stdout, "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n")?;
                                 lost = true;
                                 ask_play_again = true;
                             }
@@ -305,44 +305,49 @@ fn main() -> Result<(), String> {
                 }
                 Key::Char('f' | 'F') if !first_move && !ask_play_again => {
                     if args.assisted_flagging {
-                        if let Some(cell) = game.field.get(game.cursor.row, game.cursor.col) {
-                            if matches!(cell.state, cell::State::Open)
-                            && cell.neighbouring_bomb_count
-                            == game
+                        let cell = game
                             .field
+                            .get(game.cursor.row, game.cursor.col)
+                            .expect("Cursor position out of bounds");
+
+                        let non_open_nbors = game
                             .get_non_open_nbors_amt(game.cursor.row, game.cursor.col)
-                            .unwrap() {
-                                game.field.unflag_all_closed_around(game.cursor.row, game.cursor.col);
-                            }
+                            .expect("Position out of bounds");
+
+                        if matches!(cell.state, cell::State::Open)
+                            && cell.neighbouring_bomb_count == non_open_nbors
+                        {
+                            game.field
+                                .unflag_all_closed_around(game.cursor.row, game.cursor.col);
                         }
                     }
 
-                    game.field.toggle_flag_at(game.cursor.row, game.cursor.col)
+                    game.field
+                        .toggle_flag_at(game.cursor.row, game.cursor.col)
+                        .expect("Cursor position out of bounds");
                 }
                 _ => {}
             }
         }
         if !lost {
-            game.print_game_state(&mut stdout);
+            game.print_game_state(&mut stdout)?;
             if game.field.covered_empty_cells == 0 {
                 write!(
                     &mut stdout,
                     "{}You won!{}\r\n",
                     color::Fg(color::Green),
                     color::Fg(color::Reset)
-                )
-                .unwrap();
-                stdout.flush().unwrap();
+                )?;
+                stdout.flush()?;
                 write!(
                     stdout,
                     "Do you want to play again? Press y/Y/<space>/<insert> if yes, n/N if no\r\n"
-                )
-                .unwrap();
+                )?;
                 ask_play_again = true;
             }
         }
     }
-    stdout.flush().unwrap();
+    stdout.flush()?;
 
     Ok(())
 }

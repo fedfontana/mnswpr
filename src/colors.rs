@@ -1,7 +1,7 @@
-use termion::color;
+use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer};
 use std::fmt;
-use serde::de::{self, Visitor};
+use termion::color;
 
 #[derive(Deserialize, Debug)]
 pub struct PaletteElement {
@@ -63,22 +63,23 @@ impl<'de> Visitor<'de> for HexColorVisitor {
     }
 
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-        where
-            E: de::Error, {
-                let s = v.to_lowercase();
-                if s.len() != 7 {
-                    return Err(E::custom("hex color must have lenght 7"));
-                }
-                
-                let r = u8::from_str_radix(&s[1..3], 16);
-                let g = u8::from_str_radix(&s[3..5], 16);
-                let b = u8::from_str_radix(&s[5..7], 16);
-                
-                if r.is_err() || g.is_err() || b.is_err() {
-                    return Err(E::custom("color values out of range"));
-                }
-            
-                Ok(color::Rgb(r.unwrap(), g.unwrap(), b.unwrap()))
+    where
+        E: de::Error,
+    {
+        let s = v.to_lowercase();
+        if s.len() != 7 {
+            return Err(E::custom("hex color must have lenght 7"));
+        }
+
+        let r = u8::from_str_radix(&s[1..3], 16);
+        let g = u8::from_str_radix(&s[3..5], 16);
+        let b = u8::from_str_radix(&s[5..7], 16);
+
+        if r.is_err() || g.is_err() || b.is_err() {
+            return Err(E::custom("color values out of range"));
+        }
+
+        Ok(color::Rgb(r.unwrap(), g.unwrap(), b.unwrap()))
     }
 }
 
@@ -98,15 +99,15 @@ pub const OG_PALETTE: Palette = Palette {
     closed: PaletteElement::new(color::Rgb(30, 30, 30), color::Rgb(30, 30, 30)),
     open_bg: CBg::new(color::Rgb(138, 138, 138)),
     neighbour_count_to_fg_color: [
-        CFg::new(color::Rgb(138, 138, 138)),               // 0
-        CFg::new(color::Rgb(0, 0, 255)),      // 1
-        CFg::new(color::Rgb(0, 130, 0)),      // 2
-        CFg::new(color::Rgb(200, 0, 0)),      // 3
-        CFg::new(color::Rgb(0, 0, 131)),      // 4
-        CFg::new(color::Rgb(132, 0, 1)),      // 5
-        CFg::new(color::Rgb(0, 130, 132)),    // 6
-        CFg::new(color::Rgb(132, 0, 132)),    // 7
-        CFg::new(color::Rgb(117, 117, 117)),  // 8
+        CFg::new(color::Rgb(138, 138, 138)), // 0
+        CFg::new(color::Rgb(0, 0, 255)),     // 1
+        CFg::new(color::Rgb(0, 130, 0)),     // 2
+        CFg::new(color::Rgb(200, 0, 0)),     // 3
+        CFg::new(color::Rgb(0, 0, 131)),     // 4
+        CFg::new(color::Rgb(132, 0, 1)),     // 5
+        CFg::new(color::Rgb(0, 130, 132)),   // 6
+        CFg::new(color::Rgb(132, 0, 132)),   // 7
+        CFg::new(color::Rgb(117, 117, 117)), // 8
     ],
     mine: PaletteElement::new(color::Rgb(180, 0, 0), color::Rgb(255, 255, 255)),
     flag: PaletteElement::new(color::Rgb(40, 100, 40), color::Rgb(255, 255, 255)),
@@ -119,15 +120,15 @@ pub const MNSWPR_PALETTE: Palette = Palette {
     closed: PaletteElement::new(color::Rgb(30, 30, 30), color::Rgb(255, 255, 255)),
     open_bg: CBg::new(color::Rgb(30, 30, 30)),
     neighbour_count_to_fg_color: [
-        CFg::new(color::Rgb(30, 30, 30)),     // 0
-        CFg::new(color::Rgb(70, 100, 255)),   // 1
-        CFg::new(color::Rgb(0, 130, 0)),      // 2
-        CFg::new(color::Rgb(200, 0, 0)),      // 3
-        CFg::new(color::Rgb(200, 30, 200)),   // 4
-        CFg::new(color::Rgb(132, 0, 1)),      // 5
-        CFg::new(color::Rgb(0, 130, 132)),    // 6
-        CFg::new(color::Rgb(132, 0, 132)),    // 7
-        CFg::new(color::Rgb(117, 117, 117)),  // 8
+        CFg::new(color::Rgb(30, 30, 30)),    // 0
+        CFg::new(color::Rgb(70, 100, 255)),  // 1
+        CFg::new(color::Rgb(0, 130, 0)),     // 2
+        CFg::new(color::Rgb(200, 0, 0)),     // 3
+        CFg::new(color::Rgb(200, 30, 200)),  // 4
+        CFg::new(color::Rgb(132, 0, 1)),     // 5
+        CFg::new(color::Rgb(0, 130, 132)),   // 6
+        CFg::new(color::Rgb(132, 0, 132)),   // 7
+        CFg::new(color::Rgb(117, 117, 117)), // 8
     ],
     mine: PaletteElement::new(color::Rgb(180, 0, 0), color::Rgb(255, 255, 255)),
     flag: PaletteElement::new(color::Rgb(40, 100, 40), color::Rgb(255, 255, 255)),

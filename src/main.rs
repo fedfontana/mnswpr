@@ -12,21 +12,21 @@ use clap::{command, Parser};
 
 use anyhow::{Context, Result};
 
-use termion::color;
-use termion::cursor::HideCursor;
+use colors::FG_RESET;
 use termion::event::{Event, Key};
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
+use termion::{color, cursor::HideCursor};
 
 mod cell;
 mod colors;
-mod field;
-mod game;
 mod config;
+mod field;
+mod mnswpr;
 
-use crate::game::{ Mnswpr, Direction };
+use crate::mnswpr::Mnswpr;
 
-use config::{ Theme, SizePreset };
+use config::{SizePreset, Theme};
 
 /// A simple minesweeper game for the terminal.
 ///
@@ -97,130 +97,57 @@ fn main() -> Result<()> {
 
     let (cols, rows) = parse_field_size(&args).context("Could not get the size of the terminal")?;
 
-    let mut game = Mnswpr::new(rows, cols, args.mine_percentage, args.theme.to_palette()?);
+    let mut mnswpr = Mnswpr::new(rows, cols, args.mine_percentage, args.theme.to_palette()?);
 
-    let stdin = stdin();
     let mut stdout = HideCursor::from(stdout().into_raw_mode()?);
 
-    write!(
-        stdout,
-        "{}{}",
-        termion::clear::All,
-        termion::cursor::Goto(1, 1)
-    )?;
+    loop {
+        write!(
+            stdout,
+            "{}{}",
+            termion::clear::All,
+            termion::cursor::Goto(1, 1)
+        )?;
+        mnswpr.reset();
 
-    game.print_game_state(&mut stdout)?;
-    stdout.flush()?;
+        let user_did_win = mnswpr.play(&mut stdout, args.assisted_opening, args.assisted_flagging)?;
 
-    let mut lost = false;
-    let mut ask_play_again = false;
-    let mut first_move = true;
-
-    for c in stdin.events() {
-        if let Ok(Event::Key(event)) = c {
-            match event {
-                Key::Char(' ' | 'y' | 'Y' | '\n') if ask_play_again => {
-                    lost = false;
-                    ask_play_again = false;
-                    first_move = true;
-
-                    write!(
-                        stdout,
-                        "{}{}",
-                        termion::clear::All,
-                        termion::cursor::Goto(1, 1)
-                    )?;
-                    game.reset();
-                }
-                Key::Char('q' | 'Q' | 'n' | 'N') if ask_play_again => break,
-                Key::Char('q' | 'Q') => break,
-                Key::Char('w' | 'W' | 'k' | 'K') | Key::Up if !ask_play_again => game.move_cursor(Direction::Up),
-                Key::Char('a' | 'A' | 'h' | 'H') | Key::Left if !ask_play_again => game.move_cursor(Direction::Left),
-                Key::Char('s' | 'S' | 'j' | 'J') | Key::Down if !ask_play_again => game.move_cursor(Direction::Down),
-                Key::Char('d' | 'D' | 'l' | 'L') | Key::Right if !ask_play_again => game.move_cursor(Direction::Right),
-                Key::Char(' ' | '\n') if !ask_play_again => {
-                    if first_move {
-                        game.randomize_field();
-                        first_move = false;
-                    }
-
-                    let cell = game.field.get_unchecked(game.cursor.row, game.cursor.col);
-                    if args.assisted_opening
-                        && matches!(cell.state, cell::State::Open)
-                        && game
-                            .field
-                            .get_flagged_nbors_amt(game.cursor.row, game.cursor.col)
-                            .expect("Position out of bounds")
-                            == cell.neighbouring_bomb_count
-                    {
-                        if game
-                            .field
-                            .uncover_around_cell_at(game.cursor.row, game.cursor.col)
-                            .expect("Position out of bounds")
-                        {
-                            game.lose_screen(&mut stdout)?;
-                            write!(stdout, "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n")?;
-                            lost = true;
-                            ask_play_again = true;
-                        }
-                    } else {
-                        if game
-                            .field
-                            .uncover_at(game.cursor.row, game.cursor.col)
-                            .expect("Cursor out of bounds")
-                        {
-                            game.lose_screen(&mut stdout)?;
-                            write!(stdout, "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n")?;
-                            lost = true;
-                            ask_play_again = true;
-                        }
-                    }
-                }
-                Key::Char('f' | 'F') if !first_move && !ask_play_again => {
-                    if args.assisted_flagging {
-                        let cell = game
-                            .field
-                            .get(game.cursor.row, game.cursor.col)
-                            .expect("Cursor position out of bounds");
-
-                        let non_open_nbors = game
-                            .get_non_open_nbors_amt(game.cursor.row, game.cursor.col)
-                            .expect("Position out of bounds");
-
-                        if matches!(cell.state, cell::State::Open)
-                            && cell.neighbouring_bomb_count == non_open_nbors
-                        {
-                            game.field
-                                .unflag_all_closed_around(game.cursor.row, game.cursor.col);
-                        }
-                    }
-
-                    game.field
-                        .toggle_flag_at(game.cursor.row, game.cursor.col)
-                        .expect("Cursor position out of bounds");
-                }
-                _ => {}
-            }
+        // If the user explicitly quit, then exit out of the program
+        if user_did_win.is_none() {
+            break;
         }
-        if !lost {
-            game.print_game_state(&mut stdout)?;
-            if game.field.covered_empty_cells == 0 {
-                write!(
-                    &mut stdout,
-                    "{}You won!{}\r\n",
-                    color::Fg(color::Green),
-                    color::Fg(color::Reset)
-                )?;
-                stdout.flush()?;
-                write!(
-                    stdout,
-                    "Do you want to play again? Press y/Y/<space>/<insert> if yes, n/N if no\r\n"
-                )?;
-                ask_play_again = true;
+
+        mnswpr.print_game_state(&mut stdout, true)?;
+        if user_did_win.unwrap() {
+            write!(stdout, "{}You won!{FG_RESET}\r\n", color::Fg(color::Green))?;
+        } else {
+            write!(
+                stdout,
+                "{}You lost!{FG_RESET}\r\n",
+                color::Fg(color::LightRed),
+            )?;
+        }
+        write!(
+            stdout,
+            "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n"
+        )?;
+        stdout.flush()?;
+
+        let stdin = stdin();
+        for e in stdin.events() {
+            if let Event::Key(event) = e? {
+                match event {
+                    Key::Char(' ' | 'y' | 'Y' | '\n') => {
+                        break;
+                    }
+                    Key::Char('q' | 'Q' | 'n' | 'N') => {
+                        return Ok(());
+                    }
+                    _ => {}
+                }
             }
         }
     }
-    stdout.flush()?;
 
     Ok(())
 }

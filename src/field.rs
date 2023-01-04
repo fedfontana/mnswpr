@@ -6,7 +6,7 @@ pub struct Field {
     pub rows: usize,
     pub cols: usize,
     grid: Vec<cell::Cell>,
-    pub covered_empty_cells: usize,
+    pub closed_empty_cells: usize,
     pub mine_count: usize,
     pub flag_count: usize,
 }
@@ -22,7 +22,7 @@ impl Field {
             rows,
             cols,
             grid: vec![cell::Cell::default(); rows * cols],
-            covered_empty_cells: rows * cols,
+            closed_empty_cells: rows * cols,
             mine_count: 0,
             flag_count: 0,
         }
@@ -31,7 +31,7 @@ impl Field {
     /// Resets the field state to an empty field with the same rows and cols
     pub fn reset(&mut self) {
         self.grid = vec![cell::Cell::default(); self.rows * self.cols];
-        self.covered_empty_cells = self.rows * self.cols;
+        self.closed_empty_cells = self.rows * self.cols;
         self.mine_count = 0;
         self.flag_count = 0;
     }
@@ -56,7 +56,7 @@ impl Field {
             mine_percentage = 99;
         }
 
-        let mut covered_empty_cells = 0;
+        let mut closed_empty_cells = 0;
         let mut mine_count = 0;
 
         // Generate random board
@@ -66,14 +66,14 @@ impl Field {
 
             let cell_content = if rng.gen_range(1..=100) <= mine_percentage {
                 if row.abs_diff(current_row) < 2 && col.abs_diff(current_col) < 2 {
-                    covered_empty_cells += 1;
+                    closed_empty_cells += 1;
                     cell::Content::Empty
                 } else {
                     mine_count += 1;
                     cell::Content::Mine
                 }
             } else {
-                covered_empty_cells += 1;
+                closed_empty_cells += 1;
                 cell::Content::Empty
             };
 
@@ -84,7 +84,7 @@ impl Field {
             };
         }
 
-        self.covered_empty_cells = covered_empty_cells;
+        self.closed_empty_cells = closed_empty_cells;
         self.mine_count = mine_count;
 
         self.recompute_neighbouroing_counts();
@@ -115,11 +115,10 @@ impl Field {
                         continue;
                     }
 
-                    if matches!(
-                        self.get_unchecked(current_row as usize, current_col as usize)
-                            .content,
-                        cell::Content::Mine
-                    ) {
+                    if self
+                        .get_unchecked(current_row as usize, current_col as usize)
+                        .contains_mine()
+                    {
                         count += 1;
                     }
                 }
@@ -165,28 +164,29 @@ impl Field {
             return;
         }
 
-        match field.get(current_row as usize, current_col as usize) {
-            // if state is Open or Flagged, do nothing
-            Some(&cell::Cell {
-                state: cell::State::Open | cell::State::Flagged,
-                ..
-            }) => return,
+        let opt_cell = field.get(current_row as usize, current_col as usize);
 
-            // Stop the recursion when meeting a mine
-            Some(&cell::Cell {
-                content: cell::Content::Mine,
-                ..
-            }) => return,
-
-            // Do not go out of bounds
-            None => return,
-
-            _ => {}
+        // Do not go out of bounds
+        if opt_cell.is_none() {
+            return;
         }
 
-        field.covered_empty_cells -= 1;
-        let current_cell = field.get_mut_unchecked(current_row as usize, current_col as usize);
+        let cell = opt_cell.unwrap();
 
+        // if state is Open or Flagged, do nothing
+        if !cell.is_closed() {
+            return;
+        }
+
+        //TODO I think this is useless and wrong, just leaving it here until i make up my mind about it
+        // Stop the recursion when meeting a mine
+        // if !cell.is_empty() {
+        //     return;
+        // }
+
+        field.closed_empty_cells -= 1;
+
+        let current_cell = field.get_mut_unchecked(current_row as usize, current_col as usize);
         current_cell.set_state(cell::State::Open);
 
         // Do not call recursively if we are at the edge of the 0s region
@@ -200,7 +200,8 @@ impl Field {
                 if drow == 0 && dcol == 0 {
                     continue;
                 }
-                // Bounds will be checked by the next recursive call's `if let Some(..)` and the `if` before that
+
+                // Bounds will be checked by the recursive call
                 Self::uncover_rec(field, current_row + drow, current_col + dcol)
             }
         }
@@ -213,9 +214,7 @@ impl Field {
         let old_cell = self.get_mut(row, col)?;
 
         // Return early if the user tried to open a mine
-        if matches!(old_cell.content, cell::Content::Mine)
-            && !matches!(old_cell.state, cell::State::Flagged)
-        {
+        if old_cell.contains_mine() && !old_cell.is_flagged() {
             return Some(true);
         }
 
@@ -271,7 +270,7 @@ impl Field {
 
                 let opt_cell = self.get((row + drow) as usize, (col + dcol) as usize);
                 if let Some(cell) = opt_cell {
-                    if matches!(cell.state, cell::State::Flagged) {
+                    if cell.is_flagged() {
                         count += 1;
                     }
                 }
@@ -304,7 +303,7 @@ impl Field {
                 let c = (col + dcol) as usize;
 
                 if let Some(cell) = self.get(r, c) {
-                    if matches!(cell.state, cell::State::Closed) {
+                    if cell.is_closed() {
                         if self.uncover_at(r, c).expect("Index out of bounds") {
                             return Some(true);
                         }
@@ -336,7 +335,7 @@ impl Field {
                 }
                 let opt_cell = self.get((row + drow) as usize, (col + dcol) as usize);
                 if let Some(cell) = opt_cell {
-                    if !matches!(cell.state, cell::State::Open) {
+                    if !cell.is_open() {
                         count += 1;
                     }
                 }
@@ -368,7 +367,7 @@ impl Field {
                 let c = (col + dcol) as usize;
 
                 if let Some(cell) = self.get(r, c) {
-                    if matches!(cell.state, cell::State::Closed) {
+                    if cell.is_closed() {
                         self.toggle_flag_at(r, c);
                     }
                 }

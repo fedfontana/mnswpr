@@ -49,41 +49,28 @@ impl Mnswpr {
     }
 
     /// Prints the field with the current palette.
+    /// If `game_lost == true`, it prints the whole board as if it was open and it highlights
+    /// flags misplaced and the ones placed correctly
     /// May return an error if it was not able to write in `f`
-    pub fn print_field(&self, f: &mut impl Write) -> anyhow::Result<()> {
+    pub fn print_field(&self, f: &mut impl Write, game_lost: bool) -> anyhow::Result<()> {
         let mut str_repr = String::with_capacity(self.rows * self.cols * 3 * 2);
 
         for row in 0..self.rows {
             for col in 0..self.cols {
                 let cell = self.get_unchecked(row, col);
 
-                let cell_repr = cell.to_string_with_palette(
-                    &self.palette,
-                    self.cursor.row == row && self.cursor.col == col,
-                );
-                str_repr.push_str(&cell_repr);
-            }
-            str_repr = format!("{str_repr}{BG_RESET}{FG_RESET}\r\n");
-        }
+                let cell_repr = if !game_lost {
+                    cell.to_string_with_palette(
+                        &self.palette,
+                        self.cursor.row == row && self.cursor.col == col,
+                    )
+                } else {
+                    cell.to_string_with_palette_lost(
+                        &self.palette,
+                        self.cursor.row == row && self.cursor.col == col,
+                    )
+                };
 
-        write!(f, "{str_repr}")?;
-        Ok(())
-    }
-
-    /// Prints the field with the current palette, highlighting the flags that were placed in the right
-    /// place and the ones that are placed on empty cells
-    /// May return an error if it was not able to write in `f`
-    pub fn print_field_game_lost(&self, f: &mut impl Write) -> anyhow::Result<()> {
-        let mut str_repr = String::with_capacity(self.rows * self.cols * 3 * 2);
-
-        for row in 0..self.rows {
-            for col in 0..self.cols {
-                let cell = self.get_unchecked(row, col);
-
-                let cell_repr = cell.to_string_with_palette_lost(
-                    &self.palette,
-                    self.cursor.row == row && self.cursor.col == col,
-                );
                 str_repr.push_str(&cell_repr);
             }
             str_repr = format!("{str_repr}{BG_RESET}{FG_RESET}\r\n");
@@ -109,11 +96,7 @@ impl Mnswpr {
             self.field.mine_count,
             self.field.flag_count
         )?;
-        if !open_everything {
-            self.print_field(f)?;
-        } else {
-            self.print_field_game_lost(f)?;
-        }
+        self.print_field(f, open_everything)?;
         f.flush()?;
         Ok(())
     }

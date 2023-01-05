@@ -101,6 +101,9 @@ fn main() -> Result<()> {
 
     let mut stdout = HideCursor::from(stdout().into_raw_mode()?);
 
+    let mut wins = 0;
+    let mut losses = 0;
+
     loop {
         write!(
             stdout,
@@ -120,13 +123,20 @@ fn main() -> Result<()> {
         mnswpr.print_game_state(&mut stdout, true)?;
         if user_did_win.unwrap() {
             write!(stdout, "{}You won!{FG_RESET}\r\n", color::Fg(color::Green))?;
+            wins += 1;
         } else {
             write!(
                 stdout,
                 "{}You lost!{FG_RESET}\r\n",
                 color::Fg(color::LightRed),
             )?;
+            losses += 1;
         }
+        write!(
+            stdout,
+            "Wins: {wins}    Losses: {losses}   Win rate: {:.1}%\r\n",
+            wins as f64 / (wins + losses) as f64 * 100_f64
+        )?;
         write!(
             stdout,
             "Press y/Y/<space>/<insert> if you want to play again, otherwise press n/N\r\n"

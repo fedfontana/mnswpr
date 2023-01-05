@@ -250,33 +250,7 @@ impl Field {
     /// Returns the number of flagged neighbors of the cell at position (row, col).
     /// Returns None if the position is out of bounds
     pub fn get_flagged_nbors_amt(&self, row: usize, col: usize) -> Option<usize> {
-        // Return early None if (row, col) is out of bounds
-        self.get(row, col)?;
-
-        let mut count = 0;
-
-        let row = row as isize;
-        let col = col as isize;
-
-        for drow in -1..=1 {
-            for dcol in -1..=1 {
-                if drow == 0 && dcol == 0 {
-                    continue;
-                }
-
-                if row + drow < 0 || col + dcol < 0 {
-                    continue;
-                }
-
-                let opt_cell = self.get((row + drow) as usize, (col + dcol) as usize);
-                if let Some(cell) = opt_cell {
-                    if cell.is_flagged() {
-                        count += 1;
-                    }
-                }
-            }
-        }
-        Some(count)
+        self.get_nbor_amt_that_match(row, col, |c| c.is_flagged())
     }
 
     /// Uncovers the closed cells around the cell at (row, col).
@@ -317,31 +291,7 @@ impl Field {
     /// Returns the number of closed or flagged neighbors of the cell at position (row, col).
     /// Returns None if the position is out of bounds
     pub fn get_non_open_nbors_amt(&self, row: usize, col: usize) -> Option<usize> {
-        // Return early None if position (row, col) is out of bounds
-        self.get(row, col)?;
-
-        let mut count = 0;
-
-        let row = row as isize;
-        let col = col as isize;
-
-        for drow in -1..=1 {
-            for dcol in -1..=1 {
-                if drow == 0 && dcol == 0 {
-                    continue;
-                }
-                if row + drow < 0 || col + dcol < 0 {
-                    continue;
-                }
-                let opt_cell = self.get((row + drow) as usize, (col + dcol) as usize);
-                if let Some(cell) = opt_cell {
-                    if !cell.is_open() {
-                        count += 1;
-                    }
-                }
-            }
-        }
-        Some(count)
+        self.get_nbor_amt_that_match(row, col, |c| !c.is_open())
     }
 
     /// Flags the closed cells around the cell at (row, col).
@@ -375,5 +325,40 @@ impl Field {
         }
 
         true
+    }
+
+    /// Returns the number of neighbors of the cell at position (row, col) that make the predicate `match_fn` return true.
+    /// Returns None if the position (row, col) is out of bounds
+    fn get_nbor_amt_that_match(
+        &self,
+        row: usize,
+        col: usize,
+        match_fn: impl Fn(&cell::Cell) -> bool,
+    ) -> Option<usize> {
+        // Return early None if position (row, col) is out of bounds
+        self.get(row, col)?;
+
+        let mut count = 0;
+
+        let row = row as isize;
+        let col = col as isize;
+
+        for drow in -1..=1 {
+            for dcol in -1..=1 {
+                if drow == 0 && dcol == 0 {
+                    continue;
+                }
+                if row + drow < 0 || col + dcol < 0 {
+                    continue;
+                }
+                let opt_cell = self.get((row + drow) as usize, (col + dcol) as usize);
+                if let Some(cell) = opt_cell {
+                    if match_fn(cell) {
+                        count += 1;
+                    }
+                }
+            }
+        }
+        Some(count)
     }
 }

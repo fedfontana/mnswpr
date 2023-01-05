@@ -89,27 +89,29 @@ impl Mnswpr {
         f: &mut impl Write,
         open_everything: bool,
     ) -> anyhow::Result<()> {
-        let space_amt = if self.cols * 3 > 6
-        + (self.field.mine_count.checked_ilog10().unwrap_or(0) as usize + 1)
-        + 6
-        + (self.field.flag_count.checked_ilog10().unwrap_or(0) as usize + 1) + 4 {
-            self.cols * 3 - 6
-        - (self.field.mine_count.checked_ilog10().unwrap_or(0) as usize + 1)
-        - 6
-        - (self.field.flag_count.checked_ilog10().unwrap_or(0) as usize + 1)
-        } else { 4 };
+        // (len of "Mines:" + len of "Flags:") (=> 12) + (number of chars of mines + number of chars of flags) (the logs + 2)
+        let header_width =
+            (14 + self.field.mine_count.checked_ilog10().unwrap_or(0)
+                + self.field.flag_count.checked_ilog10().unwrap_or(0)) as usize;
 
-            write!(
-                f,
-                "{reset}Mines:{mines}{spaces}Flags:{flags}\r\n",
-                reset = termion::cursor::Goto(1, 1),
-                mines = self.field.mine_count,
-                flags = self.field.flag_count,
-                // width of the printed field (3x chars for each cell) - len of "Mines:" - number of chars of mines - len of "Flags:" - number of chars of flags
-                spaces = " ".repeat(space_amt)
-            )?;
+        let space_amt = if self.cols * 3 > header_width + 4 {
+            self.cols * 3 - header_width
+        } else {
+            4
+        };
+
+        write!(
+            f,
+            "{reset}Mines:{mines}{spaces}Flags:{flags}\r\n",
+            reset = termion::cursor::Goto(1, 1),
+            mines = self.field.mine_count,
+            flags = self.field.flag_count,
+            spaces = " ".repeat(space_amt)
+        )?;
+
         self.print_field(f, open_everything)?;
         f.flush()?;
+        
         Ok(())
     }
 
